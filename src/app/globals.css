@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/*
+ * Storybook — warm, gentle, picture-book feel.
+ * Cream paper, ink text, a soft berry accent. Light + dark aware.
+ */
+:root {
+  --background: #fbf7f0;
+  --surface: #ffffff;
+  --surface-2: #f4ede1;
+  --foreground: #2b2118;
+  --muted: #7a6f60;
+  --border: #e7dcc9;
+  --accent: #b5476b;
+  --accent-fg: #ffffff;
+  --accent-soft: #f7e3ea;
+  --ok: #2e7d5b;
+  --warn: #b4791f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1a1512;
+    --surface: #241d18;
+    --surface-2: #2e2620;
+    --foreground: #f2e9dd;
+    --muted: #b3a596;
+    --border: #3a2f26;
+    --accent: #e07a9d;
+    --accent-fg: #2b2118;
+    --accent-soft: #3a2530;
+    --ok: #6fce a3;
+    --ok: #6fcea3;
+    --warn: #e0b465;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+}
+
+/* Distraction-free writing surface: no borders, generous measure. */
+.writing-surface {
+  font-family: var(--font-display), Georgia, serif;
+  line-height: 1.7;
+}
+.writing-surface:focus {
+  outline: none;
+}
+.writing-surface::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+}
