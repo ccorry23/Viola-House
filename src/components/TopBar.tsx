@@ -7,7 +7,7 @@ export function TopBar() {
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2 font-display text-lg font-bold">
           <span aria-hidden>📚</span>
-          <span>Storybook</span>
+          <span>Viola House</span>
         </Link>
         <OnlineIndicator />
       </div>

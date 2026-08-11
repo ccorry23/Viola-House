@@ -122,7 +122,7 @@ export async function buildCoverPdf({
 
   // Back cover note.
   {
-    const note = 'Made with Storybook'
+    const note = 'Made with Viola House'
     const s = 11
     const nw = body.widthOfTextAtSize(note, s)
     page.drawText(note, {

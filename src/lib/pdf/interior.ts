@@ -96,7 +96,7 @@ export async function buildInteriorPdf({
       `“${title}”`,
       'No part of this book may be reproduced without permission.',
       '',
-      'Made with Storybook.',
+      'Made with Viola House.',
     ]
     let y = inset + 18 * lines.length * 1.4
     for (const line of lines) {

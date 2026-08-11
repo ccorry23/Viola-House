@@ -1,4 +1,4 @@
-# Storybook — Picture Book Studio
+# Viola House — Picture Book Studio
 
 A personal, single-user tool for writing, illustrating, and exporting children's
 picture books ready for **Amazon KDP** paperback publishing.

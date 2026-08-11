@@ -18,11 +18,11 @@ const display = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Storybook — Picture Book Studio",
+  title: "Viola House — Picture Book Studio",
   description:
     "Write, illustrate, and export children's picture books ready for Amazon KDP.",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Storybook", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Viola House", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
