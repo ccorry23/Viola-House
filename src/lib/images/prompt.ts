@@ -29,20 +29,26 @@ export function buildPagePrompt(style: StylePromptInput, pageText: string): stri
     BASE_STYLE,
     styleClause(style),
     `Illustrate this moment from the story: "${pageText.trim()}"`,
-    'Keep the characters visually identical to the reference image provided (same faces, colors, proportions, and clothing).',
+    'Match the cover image provided: keep the same characters (identical faces, ' +
+      'colors, proportions, and clothing), the same art style, and the same palette.',
   ]
     .filter(Boolean)
     .join(' ')
 }
 
-/** Prompt for the one-time character/style reference sheet. */
+/**
+ * Prompt for the book's cover — the first image the author dials in. It sets the
+ * look for the whole book and is reused as the style/character reference on
+ * every page.
+ */
 export function buildReferencePrompt(style: StylePromptInput): string {
   return [
     BASE_STYLE,
     styleClause(style),
-    'Create a clean character reference sheet: show the main character(s) full-body, ' +
-      'front view, on a plain neutral background, clearly and consistently designed so ' +
-      'they can be reused across every page of the book.',
+    'Create the front cover illustration for this book: a warm, inviting full-bleed ' +
+      'scene featuring the main character(s) prominently and capturing the story\'s ' +
+      'mood, clearly and consistently designed so the same characters and style can ' +
+      'be carried across every page of the book.',
   ]
     .filter(Boolean)
     .join(' ')

@@ -31,8 +31,13 @@ export async function exportBook(
 
   const sorted = [...pages].sort((a, b) => a.index - b.index)
   const interiorPages: { text: string; pngBytes: Uint8Array | null }[] = []
-  let frontBytes: Uint8Array | null = null
   let missingImages = 0
+
+  // The cover front prefers the dedicated cover image (the style anchor the
+  // author dialed in first); it falls back to page 1's art if none is set.
+  let frontBytes: Uint8Array | null = book.style.characterSheet
+    ? await upscaleToPng(book.style.characterSheet, wPx, hPx)
+    : null
 
   for (const p of sorted) {
     let png: Uint8Array | null = null
@@ -42,7 +47,7 @@ export async function exportBook(
       missingImages++
     }
     interiorPages.push({ text: p.text, pngBytes: png })
-    if (p.index === 0 && png) frontBytes = png
+    if (p.index === 0 && png && !frontBytes) frontBytes = png
   }
 
   const interior = await buildInteriorPdf({

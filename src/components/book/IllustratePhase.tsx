@@ -32,13 +32,17 @@ export function IllustratePhase({
   }, [])
 
   const canGenerate = available === true && online
+  // The cover is the anchor: pages can't be AI-illustrated until it's set, so
+  // every page matches an approved look. (Uploading your own art is always OK.)
+  const hasCover = Boolean(book.style.characterSheet)
+  const canGeneratePages = canGenerate && hasCover
 
   const readyCount = pages.filter((p) => p.imageStatus === 'ready').length
   const allDone = pages.length > 0 && readyCount === pages.length
 
   return (
     <div className="mx-auto max-w-4xl">
-      <StylePanel book={book} />
+      <CoverPanel book={book} />
 
       {available === false && (
         <Banner tone="warn">
@@ -55,19 +59,28 @@ export function IllustratePhase({
         </Banner>
       )}
 
-      <div className="mt-6 flex items-center justify-between">
-        <h2 className="font-display text-xl font-semibold">
-          Illustrations{' '}
-          <span className="text-muted">
-            ({readyCount}/{pages.length})
-          </span>
-        </h2>
-        <GenerateAll
-          book={book}
-          pages={pages}
-          disabled={!canGenerate}
-          onDone={() => {}}
-        />
+      <div className="mt-8 flex items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-semibold">
+            Step 2 · Your pages{' '}
+            <span className="text-muted">
+              ({readyCount}/{pages.length})
+            </span>
+          </h2>
+          <p className="mt-0.5 text-sm text-muted">
+            {hasCover
+              ? 'Illustrate every page in your cover’s style — all at once or one at a time.'
+              : 'Create your cover above first — it sets the look every page will match. (You can still upload your own art on any page.)'}
+          </p>
+        </div>
+        {hasCover && (
+          <GenerateAll
+            book={book}
+            pages={pages}
+            disabled={!canGeneratePages}
+            onDone={() => {}}
+          />
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -76,7 +89,7 @@ export function IllustratePhase({
             key={page.id}
             book={book}
             page={page}
-            canGenerate={canGenerate}
+            canGenerate={canGeneratePages}
             onNoKey={() => setAvailable(false)}
           />
         ))}
@@ -98,7 +111,7 @@ export function IllustratePhase({
 
 // ---- Style panel ------------------------------------------------------------
 
-function StylePanel({ book }: { book: Book }) {
+function CoverPanel({ book }: { book: Book }) {
   const online = useOnline()
   const [descriptor, setDescriptor] = useState(book.style.descriptor)
   const [palette, setPalette] = useState(book.style.palette)
@@ -128,7 +141,7 @@ function StylePanel({ book }: { book: Book }) {
         characters,
         characterSheet: blob,
       })
-      toast.success('Character sheet ready')
+      toast.success('Cover ready')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not generate')
     } finally {
@@ -143,7 +156,7 @@ function StylePanel({ book }: { book: Book }) {
       return
     }
     await saveStyle({ descriptor, palette, characters, characterSheet: file })
-    toast.success('Reference art set — the AI will match this look')
+    toast.success('Cover set — the AI will match this look')
   }
 
   if (collapsed) {
@@ -153,21 +166,21 @@ function StylePanel({ book }: { book: Book }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={sheetUrl}
-            alt="Character reference"
+            alt="Cover"
             className="h-12 w-12 rounded-lg object-cover"
           />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">Locked style</p>
+          <p className="text-sm font-semibold">✓ Cover set</p>
           <p className="truncate text-xs text-muted">
-            {book.style.descriptor || 'No style description'}
+            {book.style.descriptor || 'Illustrate your pages below'}
           </p>
         </div>
         <button
           onClick={() => setCollapsed(false)}
           className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-surface-2"
         >
-          Edit style
+          Edit cover
         </button>
       </div>
     )
@@ -175,10 +188,13 @@ function StylePanel({ book }: { book: Book }) {
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
-      <h2 className="font-display text-lg font-semibold">Consistent art style</h2>
+      <h2 className="font-display text-lg font-semibold">
+        Step 1 · Create your cover
+      </h2>
       <p className="mt-1 text-sm text-muted">
-        Describe the look once. A character reference sheet keeps everyone
-        looking the same on every page.
+        Start with one image — your cover. Describe the look, generate it, and
+        regenerate until the theme feels right. This cover sets the style the AI
+        matches on every page.
       </p>
 
       <div className="mt-4 grid gap-3">
@@ -215,17 +231,17 @@ function StylePanel({ book }: { book: Book }) {
 
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-2">
+          <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-2">
             {sheetUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={sheetUrl}
-                alt="Character reference"
+                alt="Cover"
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span className="text-2xl opacity-40" aria-hidden>
-                🎭
+              <span className="text-3xl opacity-40" aria-hidden>
+                🖼️
               </span>
             )}
           </div>
@@ -238,11 +254,11 @@ function StylePanel({ book }: { book: Book }) {
               {genRef
                 ? 'Generating…'
                 : book.style.characterSheet
-                  ? 'Regenerate with AI'
-                  : 'Generate with AI'}
+                  ? 'Regenerate cover'
+                  : 'Generate cover'}
             </button>
             <label className="cursor-pointer rounded-xl border border-border px-3.5 py-2 text-center text-sm font-semibold hover:bg-surface-2">
-              ↑ Upload your own art
+              ↑ Upload your own
               <input
                 type="file"
                 accept="image/*"
@@ -261,18 +277,29 @@ function StylePanel({ book }: { book: Book }) {
             saveStyle({ descriptor, palette, characters, locked: true })
             setCollapsed(true)
           }}
-          disabled={!descriptor.trim() && !book.style.characterSheet}
+          disabled={!book.style.characterSheet}
+          title={
+            book.style.characterSheet
+              ? 'Use this cover and move on to your pages'
+              : 'Generate or upload a cover first'
+          }
           className="ml-auto rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
         >
-          Lock style
+          Use this cover →
         </button>
       </div>
 
-      <p className="mt-3 text-xs text-muted">
-        Set the tone yourself: upload a hand-drawn character or sample so the AI
-        matches your look — or skip AI entirely and upload a finished
-        illustration on each page below.
-      </p>
+      {book.style.characterSheet ? (
+        <p className="mt-3 rounded-lg bg-[color:var(--ok)]/12 px-3 py-2 text-xs text-[color:var(--ok)]">
+          ✓ Cover set. Now illustrate your pages below — all at once or one at a
+          time.
+        </p>
+      ) : (
+        <p className="mt-3 text-xs text-muted">
+          Prefer to draw it yourself? Upload your own cover — or skip AI entirely
+          and upload a finished illustration on each page below.
+        </p>
+      )}
     </div>
   )
 }
@@ -469,7 +496,7 @@ function GenerateAll({
       disabled={disabled || running}
       className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
     >
-      {running ? 'Painting…' : `Generate all (${remaining.length})`}
+      {running ? 'Painting…' : `Illustrate all remaining (${remaining.length})`}
     </button>
   )
 }
