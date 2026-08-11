@@ -1,14 +1,14 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="112" fill="#b5476b"/>
+  <rect width="512" height="512" rx="112" fill="#7c5c9c"/>
   <g transform="translate(96 120)">
     <!-- open book -->
     <path d="M160 40 C120 12 52 12 12 32 L12 236 C52 216 120 216 160 244 C200 216 268 216 308 236 L308 32 C268 12 200 12 160 40 Z" fill="#fbf7f0"/>
     <path d="M160 40 L160 244" stroke="#e7dcc9" stroke-width="10" stroke-linecap="round"/>
-    <path d="M40 78 C80 66 120 68 148 84" stroke="#d9a0b4" stroke-width="9" fill="none" stroke-linecap="round"/>
-    <path d="M40 118 C80 106 120 108 148 124" stroke="#d9a0b4" stroke-width="9" fill="none" stroke-linecap="round"/>
-    <path d="M40 158 C80 146 120 148 148 164" stroke="#d9a0b4" stroke-width="9" fill="none" stroke-linecap="round"/>
-    <path d="M172 84 C200 68 240 66 280 78" stroke="#d9a0b4" stroke-width="9" fill="none" stroke-linecap="round"/>
-    <path d="M172 124 C200 108 240 106 280 118" stroke="#d9a0b4" stroke-width="9" fill="none" stroke-linecap="round"/>
-    <path d="M172 164 C200 148 240 146 280 158" stroke="#d9a0b4" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M40 78 C80 66 120 68 148 84" stroke="#c3a7d6" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M40 118 C80 106 120 108 148 124" stroke="#c3a7d6" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M40 158 C80 146 120 148 148 164" stroke="#c3a7d6" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M172 84 C200 68 240 66 280 78" stroke="#c3a7d6" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M172 124 C200 108 240 106 280 118" stroke="#c3a7d6" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M172 164 C200 148 240 146 280 158" stroke="#c3a7d6" stroke-width="9" fill="none" stroke-linecap="round"/>
   </g>
 </svg>

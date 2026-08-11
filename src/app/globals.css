@@ -2,7 +2,7 @@
 
 /*
  * Viola House — warm, gentle, picture-book feel.
- * Cream paper, ink text, a soft berry accent. Light + dark aware.
+ * Cream paper, ink text, a soft viola-violet accent. Light + dark aware.
  */
 :root {
   --background: #fbf7f0;
@@ -11,11 +11,12 @@
   --foreground: #2b2118;
   --muted: #7a6f60;
   --border: #e7dcc9;
-  --accent: #b5476b;
+  --accent: #7c5c9c;
   --accent-fg: #ffffff;
-  --accent-soft: #f7e3ea;
+  --accent-soft: #f1eaf7;
   --ok: #2e7d5b;
   --warn: #b4791f;
+  --gold: #e0a63f;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,12 +27,12 @@
     --foreground: #f2e9dd;
     --muted: #b3a596;
     --border: #3a2f26;
-    --accent: #e07a9d;
-    --accent-fg: #2b2118;
-    --accent-soft: #3a2530;
-    --ok: #6fce a3;
+    --accent: #c3a0e0;
+    --accent-fg: #241d18;
+    --accent-soft: #2e2438;
     --ok: #6fcea3;
     --warn: #e0b465;
+    --gold: #e6b84a;
   }
 }
 
@@ -47,6 +48,7 @@
   --color-accent-soft: var(--accent-soft);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
+  --color-gold: var(--gold);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
 }
