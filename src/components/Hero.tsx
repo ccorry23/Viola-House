@@ -1,17 +1,18 @@
 'use client'
 
 /**
- * Home-page hero for Viola House. Rebuilt from the approved Claude Design
- * mockup, themed with the app's tokens (viola-violet accent). The flower is a
- * recreated inline-SVG mark standing in for a final logo image.
+ * Home-page hero for Viola House, matching the approved Claude Design mockup:
+ * left = brand + headline + CTAs, right = a framed "picture book" card resting
+ * on a soft violet blob, over faint book/quill/floral line-art. Themed with the
+ * app's tokens (viola-violet accent). The card art is a placeholder illustration
+ * — swap `HeroCard`'s inner scene for a real image when one is provided.
  */
 export function Hero({ onStartNew }: { onStartNew: () => void }) {
   return (
     <section className="relative overflow-hidden border-b border-border">
-      {/* Soft decorative florals — gentle, right side, desktop only. */}
-      <DecorFlorals />
+      <BackgroundArt />
 
-      <div className="relative mx-auto grid w-full max-w-5xl items-center gap-8 px-5 py-14 sm:px-8 sm:py-20 md:grid-cols-[1.15fr_0.85fr]">
+      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-14 sm:px-8 sm:py-20 md:grid-cols-[1.05fr_0.95fr]">
         <div>
           <ViolaBadge />
 
@@ -44,10 +45,7 @@ export function Hero({ onStartNew }: { onStartNew: () => void }) {
           </div>
         </div>
 
-        {/* Right: a large, soft flower motif on desktop. */}
-        <div className="hidden justify-self-center md:block">
-          <ViolaFlower className="h-56 w-56 opacity-90 drop-shadow-sm" />
-        </div>
+        <HeroCard />
       </div>
     </section>
   )
@@ -66,46 +64,107 @@ function ViolaBadge() {
   )
 }
 
+/** The framed picture-book card on its soft violet blob. */
+function HeroCard() {
+  return (
+    <div className="relative flex min-h-[320px] items-center justify-center">
+      {/* soft violet glow behind the card */}
+      <div className="absolute h-[380px] w-[380px] rounded-full bg-accent-soft opacity-80 blur-2xl" />
+      <div className="relative w-[300px] max-w-full rotate-2 overflow-hidden rounded-[28px] border border-border bg-surface shadow-2xl sm:w-[340px]">
+        {/* Placeholder picture-book page — replace with a real image if desired. */}
+        <BookPage />
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="font-display text-sm font-semibold text-foreground">
+            Your next story
+          </span>
+          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
+            Viola House
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** A warm illustrated picture-book page (placeholder art). */
+function BookPage() {
+  return (
+    <svg viewBox="0 0 340 300" className="block w-full" role="img" aria-label="A warm hand-illustrated picture-book spread">
+      <defs>
+        <linearGradient id="vh-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#efe7f6" />
+          <stop offset="100%" stopColor="#fbf3e9" />
+        </linearGradient>
+      </defs>
+      <rect width="340" height="300" fill="url(#vh-sky)" />
+      {/* sun */}
+      <circle cx="270" cy="66" r="30" fill="var(--gold)" opacity="0.9" />
+      {/* clouds */}
+      <g fill="#ffffff" opacity="0.85">
+        <ellipse cx="70" cy="60" rx="34" ry="16" />
+        <ellipse cx="100" cy="66" rx="26" ry="14" />
+      </g>
+      {/* far hills */}
+      <path d="M0 210 Q90 160 180 205 T340 200 V300 H0 Z" fill="#c9b6dd" />
+      {/* near hills */}
+      <path d="M0 250 Q110 205 210 250 T340 245 V300 H0 Z" fill="var(--accent)" opacity="0.9" />
+      {/* little tree */}
+      <g>
+        <rect x="60" y="214" width="7" height="26" rx="3" fill="#7a5a3a" />
+        <circle cx="63.5" cy="206" r="18" fill="#6f8f5f" />
+      </g>
+      {/* tiny house */}
+      <g>
+        <rect x="240" y="214" width="34" height="26" rx="3" fill="#f6ede0" />
+        <path d="M236 214 L257 196 L278 214 Z" fill="#b06a6a" />
+        <rect x="252" y="224" width="10" height="16" fill="var(--accent)" />
+      </g>
+    </svg>
+  )
+}
+
 /** A stylized viola/pansy: violet petals with a gold heart. */
 function ViolaFlower({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 100 100" className={className} aria-hidden role="img">
-      {/* upper back petals */}
       <ellipse cx="33" cy="37" rx="19" ry="23" fill="#9a7ab5" />
       <ellipse cx="67" cy="37" rx="19" ry="23" fill="#9a7ab5" />
-      {/* side petals */}
       <ellipse cx="27" cy="58" rx="19" ry="21" fill="var(--accent)" />
       <ellipse cx="73" cy="58" rx="19" ry="21" fill="var(--accent)" />
-      {/* front lower petal */}
       <ellipse cx="50" cy="64" rx="21" ry="19" fill="#664785" />
-      {/* heart */}
       <circle cx="50" cy="50" r="8.5" fill="var(--gold)" />
     </svg>
   )
 }
 
-function DecorFlorals() {
+/** Faint decorative line-art behind the hero: open book, quill, floral stems. */
+function BackgroundArt() {
   return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 md:block"
-    >
+    <div aria-hidden className="pointer-events-none absolute inset-0">
       <svg
-        viewBox="0 0 400 500"
+        viewBox="0 0 1200 620"
         className="h-full w-full text-accent"
         preserveAspectRatio="xMidYMid slice"
       >
-        <g fill="none" stroke="currentColor" strokeWidth="2" opacity="0.1">
-          <path d="M320 40 C300 140 360 240 300 360 C270 430 320 470 300 500" />
-          <path d="M320 120 C270 130 240 100 210 110" />
-          <path d="M310 210 C360 210 390 180 410 190" />
-          <path d="M300 300 C250 300 220 270 190 280" />
+        <g fill="none" stroke="currentColor" strokeWidth="2.5" opacity="0.08" strokeLinecap="round">
+          {/* open book, bottom center */}
+          <path d="M470 540 Q600 500 600 540 Q600 500 730 540 L730 600 Q600 560 470 600 Z" />
+          <path d="M600 540 L600 600" />
+          <path d="M500 556 Q560 540 590 552 M610 552 Q640 540 700 556" />
+          <path d="M500 574 Q560 558 590 570 M610 570 Q640 558 700 574" />
+          {/* quill */}
+          <path d="M600 500 C650 430 720 400 760 360 C740 420 700 470 630 512" />
+          <path d="M665 452 L700 468 M650 478 L688 492" />
+          {/* floral stems, right */}
+          <path d="M980 60 C960 180 1020 280 970 400" />
+          <path d="M980 120 C1030 110 1060 80 1090 90" />
+          <path d="M975 220 C930 215 905 190 880 200" />
         </g>
-        <g fill="currentColor" opacity="0.08">
-          <circle cx="210" cy="108" r="16" />
-          <circle cx="410" cy="188" r="18" />
-          <circle cx="190" cy="278" r="14" />
-          <circle cx="300" cy="370" r="20" />
+        <g fill="currentColor" opacity="0.06">
+          <circle cx="1090" cy="88" r="16" />
+          <circle cx="880" cy="198" r="13" />
+          <circle cx="150" cy="150" r="120" />
+          <circle cx="1080" cy="470" r="90" />
         </g>
       </svg>
     </div>
