@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useLiveQuery } from 'dexie-react-hooks'
 import toast from 'react-hot-toast'
 import { getPages, patchBook } from '@/lib/db/dexie'
@@ -202,6 +203,27 @@ export function PublishPhase({ book }: { book: Book }) {
             </button>
           </div>
         )}
+      </section>
+
+      {/* Manual-steps handoff: appears once the book has been through the
+          whole app flow and only the human Amazon steps remain. */}
+      <section className="rounded-2xl border border-border bg-accent-soft p-5">
+        <h2 className="font-display text-xl font-semibold">
+          Need a hand publishing on Amazon?
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          A calm, large-print, step-by-step walkthrough of everything above —
+          written for someone doing this for the very first time. Print it out
+          or follow along on screen.
+        </p>
+        <Link
+          href="/guide"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg"
+        >
+          📖 Open the full step-by-step guide
+        </Link>
       </section>
     </div>
   )
