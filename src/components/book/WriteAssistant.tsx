@@ -93,14 +93,14 @@ export function WriteAssistant({
       </div>
 
       {available === false && (
-        <p className="mt-2 rounded-lg bg-[color:var(--warn)]/12 px-3 py-2 text-xs text-[color:var(--warn)]">
-          Add <code>GEMINI_API_KEY</code> to turn on the writing helper. Your own
-          writing works with or without it.
+        <p className="mt-2 rounded-lg bg-[color:var(--warn)]/12 px-3 py-2 text-sm text-[color:var(--warn)]">
+          The writing helper isn&apos;t turned on yet — ask whoever set up this
+          app to enable it. Your own writing always works, with or without it.
         </p>
       )}
       {available !== false && !online && (
-        <p className="mt-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
-          The helper needs a connection. You can keep writing offline.
+        <p className="mt-2 rounded-lg bg-surface-2 px-3 py-2 text-sm text-muted">
+          The helper needs an internet connection. You can keep writing offline.
         </p>
       )}
 

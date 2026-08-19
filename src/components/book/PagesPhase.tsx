@@ -170,7 +170,7 @@ export function PagesPhase({
                 {pageIndex > 0 && !locked && (
                   <button
                     onClick={() => mergeUp(pageStart)}
-                    className="rounded-lg px-2 py-1 text-xs font-semibold text-accent hover:bg-accent-soft"
+                    className="rounded-lg px-3 py-2 text-sm font-semibold text-accent hover:bg-accent-soft"
                   >
                     ⤒ Merge with previous
                   </button>
@@ -201,13 +201,14 @@ function SplitHandle({ onClick }: { onClick: () => void }) {
     <button
       onClick={onClick}
       title="Split into a new page here"
+      aria-label="Split into a new page here"
       className={cn(
-        'group mx-1 inline-flex items-center align-middle',
-        'rounded-md px-1 text-xs font-semibold text-muted/50',
-        'hover:bg-accent-soft hover:text-accent'
+        'mx-0.5 inline-flex h-9 w-9 items-center justify-center align-middle',
+        'rounded-full text-base text-muted/70',
+        'hover:bg-accent-soft hover:text-accent focus-visible:bg-accent-soft focus-visible:text-accent'
       )}
     >
-      <span className="opacity-40 group-hover:opacity-100">✂</span>
+      ✂
     </button>
   )
 }

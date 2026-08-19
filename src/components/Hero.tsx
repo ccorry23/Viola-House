@@ -32,13 +32,13 @@ export function Hero({ onStartNew }: { onStartNew: () => void }) {
           <div className="mt-8 flex flex-wrap gap-3">
             <button
               onClick={onStartNew}
-              className="rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-fg shadow-sm transition hover:brightness-105"
+              className="rounded-full bg-accent px-6 py-3 text-base font-semibold text-accent-fg shadow-sm transition hover:brightness-105"
             >
               Start a new book
             </button>
             <a
               href="#library"
-              className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground transition hover:bg-surface-2"
+              className="rounded-full border border-border px-6 py-3 text-base font-semibold text-foreground transition hover:bg-surface-2"
             >
               Open my library
             </a>

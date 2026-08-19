@@ -46,10 +46,9 @@ export function IllustratePhase({
 
       {available === false && (
         <Banner tone="warn">
-          AI illustration needs an image API key (add <code>GEMINI_API_KEY</code>{' '}
-          from aistudio.google.com/apikey and restart). You can still{' '}
-          <strong>upload your own art</strong> on each page below, and write,
-          split, and export as usual.
+          AI illustration isn&apos;t turned on yet — ask whoever set up this app
+          to enable it. You can still <strong>upload your own art</strong> on
+          each page below, and write, split, and export as usual.
         </Banner>
       )}
       {available !== false && !online && (
@@ -421,10 +420,10 @@ function PageCard({
                   : 'Generate with AI'}
           </button>
           <label
-            className="cursor-pointer rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+            className="cursor-pointer whitespace-nowrap rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2"
             title="Upload your own illustration for this page"
           >
-            ↑ Upload
+            ↑ Upload your own
             <input
               type="file"
               accept="image/*"
