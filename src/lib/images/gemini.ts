@@ -5,12 +5,12 @@ import {
   type ImageProvider,
 } from './provider'
 
-const MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image'
+const MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image'
 
 /**
- * Google Gemini 2.5 Flash Image provider. When a reference image is supplied it
- * is passed alongside the prompt so recurring characters stay consistent — this
- * is the provider's main advantage for a picture book.
+ * Google Gemini Flash Image ("Nano Banana") provider. When a reference image is
+ * supplied it is passed alongside the prompt so recurring characters stay
+ * consistent — this is the provider's main advantage for a picture book.
  */
 export class GeminiProvider implements ImageProvider {
   name = 'gemini'

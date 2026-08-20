@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai'
 
-const MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash'
+const MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-3.7-flash'
 
 export class MissingKeyError extends Error {}
 
