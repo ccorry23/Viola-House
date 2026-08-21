@@ -1,172 +1,245 @@
 'use client'
 
 /**
- * Home-page hero for Viola House, matching the approved Claude Design mockup:
- * left = brand + headline + CTAs, right = a framed "picture book" card resting
- * on a soft violet blob, over faint book/quill/floral line-art. Themed with the
- * app's tokens (viola-violet accent). The card art is a placeholder illustration
- * — swap `HeroCard`'s inner scene for a real image when one is provided.
+ * Home-page hero for Viola House — ported 1:1 from the approved Claude Design
+ * file `viola-house-hero.html` (project 20b8e7bc-8dc6-4040-86ed-4b1ddd876f23).
+ * Per that file's handoff guardrails: reproduce faithfully, no invented SVG
+ * scenes/mascots, no substituted logo, no extra UI. Uses the app's existing
+ * CSS custom properties (globals.css) rather than a second token set — the
+ * approved palette is a near-exact match already.
+ *
+ * Real supplied assets required at /public: hero.jpg, viola-house-logo.png.
  */
 export function Hero({ onStartNew }: { onStartNew: () => void }) {
   return (
-    <section className="relative overflow-hidden border-b border-border">
-      <BackgroundArt />
+    <section className="hero-root relative isolate overflow-hidden">
+      {/* Faint full-page logo watermark, scoped to the hero (not global body,
+          since this app has other pages the standalone design didn't). */}
+      <div className="hero-watermark" aria-hidden />
 
-      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-14 sm:px-8 sm:py-20 md:grid-cols-[1.05fr_0.95fr]">
-        <div>
-          <ViolaBadge />
+      {/* Brand mark, top-left of the hero — the design's own logo lockup. */}
+      <a
+        href="/"
+        aria-label="Viola House home"
+        className="absolute left-4 top-4 z-10 block leading-none sm:left-8 sm:top-8"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/viola-house-logo.png"
+          alt="Viola House logo — a violet pansy with a fountain-pen nib stem above an open book"
+          className="block h-14 w-auto sm:h-20"
+        />
+      </a>
 
-          <span className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-xs font-bold uppercase tracking-wider text-accent">
-            <span aria-hidden>📚</span> Picture-book studio
+      <div className="hero-grid relative mx-auto grid w-full max-w-[1150px] items-center gap-10 px-6 py-14 sm:py-20 md:grid-cols-2 md:gap-16">
+        <div className="hero-copy max-w-[34rem]">
+          <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3.5 py-1.5 text-[13px] font-bold uppercase tracking-wider text-accent">
+            📚 Picture-book studio
           </span>
 
-          <h1 className="mt-4 font-display text-5xl font-bold leading-[1.03] tracking-tight text-foreground sm:text-6xl">
+          <h1 className="mt-5 text-balance font-display text-[clamp(2.4rem,5vw,3.6rem)] font-semibold leading-[1.08] tracking-tight text-foreground">
             Turn your stories into real picture books.
           </h1>
 
-          <p className="mt-5 max-w-md text-lg leading-relaxed text-muted">
-            Write the story, illustrate every page, and export print-ready files
-            for Amazon KDP — all in one cozy place.
+          <p className="mt-4 text-pretty text-[clamp(1.05rem,1.6vw,1.22rem)] leading-relaxed text-muted">
+            Write the story, illustrate every page, and export print-ready
+            files for Amazon KDP — all in one cozy place.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-wrap gap-3.5">
             <button
               onClick={onStartNew}
-              className="rounded-full bg-accent px-6 py-3 text-base font-semibold text-accent-fg shadow-sm transition hover:brightness-105"
+              className="hero-btn-primary rounded-full px-6 py-3.5 text-base font-bold"
             >
               Start a new book
             </button>
             <a
               href="#library"
-              className="rounded-full border border-border px-6 py-3 text-base font-semibold text-foreground transition hover:bg-surface-2"
+              className="hero-btn-ghost rounded-full border-[1.5px] border-border px-6 py-3.5 text-base font-bold text-foreground"
             >
               Open my library
             </a>
           </div>
         </div>
 
-        <HeroCard />
-      </div>
-    </section>
-  )
-}
-
-function ViolaBadge() {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full border border-border bg-surface shadow-sm">
-        <ViolaFlower className="h-10 w-10" />
-      </span>
-      <span className="font-display text-xl font-semibold text-foreground">
-        Viola House
-      </span>
-    </div>
-  )
-}
-
-/** The framed picture-book card on its soft violet blob. */
-function HeroCard() {
-  return (
-    <div className="relative flex min-h-[320px] items-center justify-center">
-      {/* soft violet glow behind the card */}
-      <div className="absolute h-[380px] w-[380px] rounded-full bg-accent-soft opacity-80 blur-2xl" />
-      <div className="relative w-[300px] max-w-full rotate-2 overflow-hidden rounded-[28px] border border-border bg-surface shadow-2xl sm:w-[340px]">
-        {/* Placeholder picture-book page — replace with a real image if desired. */}
-        <BookPage />
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="font-display text-sm font-semibold text-foreground">
-            Your next story
-          </span>
-          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
-            Viola House
-          </span>
+        <div className="hero-visual relative flex justify-center">
+          <div className="hero-blob" aria-hidden />
+          <div className="book-frame relative z-[1] w-full max-w-[460px] rounded-[24px] border border-border bg-surface p-3.5 shadow-[var(--hero-shadow-card)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/hero.jpg"
+              alt="A children's picture book resting open, showing a warm hand-illustrated spread from Viola House."
+              className="block aspect-[4/5] w-full rounded-[14px] object-cover"
+            />
+            <div className="book-frame-corners pointer-events-none absolute inset-3.5" aria-hidden>
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  )
-}
 
-/** A warm illustrated picture-book page (placeholder art). */
-function BookPage() {
-  return (
-    <svg viewBox="0 0 340 300" className="block w-full" role="img" aria-label="A warm hand-illustrated picture-book spread">
-      <defs>
-        <linearGradient id="vh-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#efe7f6" />
-          <stop offset="100%" stopColor="#fbf3e9" />
-        </linearGradient>
-      </defs>
-      <rect width="340" height="300" fill="url(#vh-sky)" />
-      {/* sun */}
-      <circle cx="270" cy="66" r="30" fill="var(--gold)" opacity="0.9" />
-      {/* clouds */}
-      <g fill="#ffffff" opacity="0.85">
-        <ellipse cx="70" cy="60" rx="34" ry="16" />
-        <ellipse cx="100" cy="66" rx="26" ry="14" />
-      </g>
-      {/* far hills */}
-      <path d="M0 210 Q90 160 180 205 T340 200 V300 H0 Z" fill="#c9b6dd" />
-      {/* near hills */}
-      <path d="M0 250 Q110 205 210 250 T340 245 V300 H0 Z" fill="var(--accent)" opacity="0.9" />
-      {/* little tree */}
-      <g>
-        <rect x="60" y="214" width="7" height="26" rx="3" fill="#7a5a3a" />
-        <circle cx="63.5" cy="206" r="18" fill="#6f8f5f" />
-      </g>
-      {/* tiny house */}
-      <g>
-        <rect x="240" y="214" width="34" height="26" rx="3" fill="#f6ede0" />
-        <path d="M236 214 L257 196 L278 214 Z" fill="#b06a6a" />
-        <rect x="252" y="224" width="10" height="16" fill="var(--accent)" />
-      </g>
-    </svg>
-  )
-}
+      <style jsx>{`
+        .hero-root {
+          background-image: radial-gradient(
+            rgba(122, 111, 96, 0.045) 1px,
+            transparent 1px
+          );
+          background-size: 22px 22px;
+        }
+        .hero-watermark {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          background-image: url('/viola-house-logo.png');
+          background-repeat: no-repeat;
+          background-position: center;
+          background-size: min(90vw, 720px) auto;
+          opacity: 0.1;
+          pointer-events: none;
+        }
+        @media (prefers-color-scheme: dark) {
+          .hero-watermark {
+            opacity: 0.15;
+          }
+        }
+        :global(:root[data-theme='dark']) .hero-watermark {
+          opacity: 0.15;
+        }
+        :global(:root[data-theme='light']) .hero-watermark {
+          opacity: 0.1;
+        }
 
-/** A stylized viola/pansy: violet petals with a gold heart. */
-function ViolaFlower({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 100 100" className={className} aria-hidden role="img">
-      <ellipse cx="33" cy="37" rx="19" ry="23" fill="#9a7ab5" />
-      <ellipse cx="67" cy="37" rx="19" ry="23" fill="#9a7ab5" />
-      <ellipse cx="27" cy="58" rx="19" ry="21" fill="var(--accent)" />
-      <ellipse cx="73" cy="58" rx="19" ry="21" fill="var(--accent)" />
-      <ellipse cx="50" cy="64" rx="21" ry="19" fill="#664785" />
-      <circle cx="50" cy="50" r="8.5" fill="var(--gold)" />
-    </svg>
-  )
-}
+        .hero-btn-primary {
+          background: var(--accent);
+          color: var(--accent-fg);
+          box-shadow: 0 10px 30px -12px rgba(43, 33, 24, 0.18);
+          transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease;
+        }
+        .hero-btn-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 16px 34px -12px color-mix(in srgb, var(--accent) 55%, transparent);
+        }
+        .hero-btn-ghost {
+          background: transparent;
+          transition:
+            background-color 0.18s ease,
+            border-color 0.18s ease,
+            color 0.18s ease;
+        }
+        .hero-btn-ghost:hover {
+          background: var(--surface-2);
+          border-color: var(--accent);
+          color: var(--accent);
+        }
 
-/** Faint decorative line-art behind the hero: open book, quill, floral stems. */
-function BackgroundArt() {
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0">
-      <svg
-        viewBox="0 0 1200 620"
-        className="h-full w-full text-accent"
-        preserveAspectRatio="xMidYMid slice"
-      >
-        <g fill="none" stroke="currentColor" strokeWidth="2.5" opacity="0.08" strokeLinecap="round">
-          {/* open book, bottom center */}
-          <path d="M470 540 Q600 500 600 540 Q600 500 730 540 L730 600 Q600 560 470 600 Z" />
-          <path d="M600 540 L600 600" />
-          <path d="M500 556 Q560 540 590 552 M610 552 Q640 540 700 556" />
-          <path d="M500 574 Q560 558 590 570 M610 570 Q640 558 700 574" />
-          {/* quill */}
-          <path d="M600 500 C650 430 720 400 760 360 C740 420 700 470 630 512" />
-          <path d="M665 452 L700 468 M650 478 L688 492" />
-          {/* floral stems, right */}
-          <path d="M980 60 C960 180 1020 280 970 400" />
-          <path d="M980 120 C1030 110 1060 80 1090 90" />
-          <path d="M975 220 C930 215 905 190 880 200" />
-        </g>
-        <g fill="currentColor" opacity="0.06">
-          <circle cx="1090" cy="88" r="16" />
-          <circle cx="880" cy="198" r="13" />
-          <circle cx="150" cy="150" r="120" />
-          <circle cx="1080" cy="470" r="90" />
-        </g>
-      </svg>
-    </div>
+        .hero-blob {
+          position: absolute;
+          inset: -8% -6% -12% -6%;
+          background: var(--accent-soft);
+          border-radius: 46% 54% 58% 42% / 52% 44% 56% 48%;
+          filter: blur(2px);
+          opacity: 0.7;
+          z-index: 0;
+        }
+
+        :global(:root) {
+          --hero-shadow-card:
+            0 24px 60px -18px rgba(43, 33, 24, 0.28),
+            0 4px 14px -6px rgba(43, 33, 24, 0.14);
+        }
+        @media (prefers-color-scheme: dark) {
+          :global(:root:not([data-theme='light'])) {
+            --hero-shadow-card:
+              0 28px 64px -18px rgba(0, 0, 0, 0.6),
+              0 4px 14px -6px rgba(0, 0, 0, 0.4);
+          }
+        }
+        :global(:root[data-theme='dark']) {
+          --hero-shadow-card:
+            0 28px 64px -18px rgba(0, 0, 0, 0.6),
+            0 4px 14px -6px rgba(0, 0, 0, 0.4);
+        }
+
+        .book-frame {
+          transform: rotate(-2.2deg);
+          transition: transform 0.35s ease;
+        }
+        .book-frame:hover {
+          transform: rotate(0deg);
+        }
+        .book-frame-corners span {
+          position: absolute;
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: var(--accent);
+          opacity: 0.75;
+        }
+        .book-frame-corners span:nth-child(1) {
+          top: 0;
+          left: 0;
+        }
+        .book-frame-corners span:nth-child(2) {
+          top: 0;
+          right: 0;
+        }
+        .book-frame-corners span:nth-child(3) {
+          bottom: 0;
+          left: 0;
+        }
+        .book-frame-corners span:nth-child(4) {
+          bottom: 0;
+          right: 0;
+        }
+        .book-frame::after {
+          content: '';
+          position: absolute;
+          inset: 22px;
+          border-radius: 14px;
+          pointer-events: none;
+          z-index: 2;
+          opacity: 0.55;
+          background:
+            linear-gradient(var(--accent), var(--accent)) top left / 28px 2.5px
+              no-repeat,
+            linear-gradient(var(--accent), var(--accent)) top left / 2.5px 28px
+              no-repeat,
+            linear-gradient(var(--accent), var(--accent)) top right / 28px
+              2.5px no-repeat,
+            linear-gradient(var(--accent), var(--accent)) top right / 2.5px
+              28px no-repeat,
+            linear-gradient(var(--accent), var(--accent)) bottom left / 28px
+              2.5px no-repeat,
+            linear-gradient(var(--accent), var(--accent)) bottom left / 2.5px
+              28px no-repeat,
+            linear-gradient(var(--accent), var(--accent)) bottom right / 28px
+              2.5px no-repeat,
+            linear-gradient(var(--accent), var(--accent)) bottom right / 2.5px
+              28px no-repeat;
+        }
+
+        @media (max-width: 767px) {
+          .hero-grid {
+            padding-top: clamp(5.5rem, 18vw, 7rem);
+            text-align: center;
+          }
+          .hero-copy {
+            margin: 0 auto;
+            max-width: 38rem;
+          }
+          .hero-visual {
+            order: 2;
+          }
+          .book-frame {
+            max-width: 380px;
+          }
+        }
+      `}</style>
+    </section>
   )
 }
