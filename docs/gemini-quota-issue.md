@@ -75,3 +75,10 @@ Viola House is fully usable without AI illustration:
 - Once Google confirms/fixes: just re-test `POST /api/illustrate` (`mode:
   "reference"`) against https://viola-house.vercel.app — no code or config
   change should be needed on our side.
+
+## Re-check log
+
+- **2026-08-22** (later same day): re-tested `POST /api/illustrate`
+  (`mode: "reference"`) directly against prod. Still `429
+  RESOURCE_EXHAUSTED`, still `generate_content_free_tier_requests limit: 0`
+  on `gemini-3.1-flash-image`. No change — still purely waiting on Google.
