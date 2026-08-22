@@ -120,3 +120,24 @@ theory: a genuine Google-side provisioning/quota-sync bug tying this
 project+model to free-tier quota despite a funded paid account. Nothing
 left to try on our end — still waiting on the forum reply / live support
 case.
+
+## ESCALATED to engineering — Case 74655041 (2026-08-22)
+
+Live billing-support chat progressed to a human agent (**Joseph F**) who
+correctly reproduced/summarized the issue back:
+
+> generate_content_free_tier_requests, limit: 0 on gemini-3.1-flash-image,
+> even with a funded $25.00 Prepay balance (01B748-4456A9-46184A),
+> persisting on projects gen-lang-client-0151804612 and
+> gen-lang-client-0275920174, where the quota violations are incorrectly
+> tagged as -FreeTier instead of the paid Tier 1 quota.
+
+He is escalating to the **specialized engineering team** to review the
+actual quota assignments and investigate the provisioning bug, and will
+email updates. **Case number: `74655041`** (opened under
+`copperhh@gmail.com`). This is now the canonical reference for follow-up —
+supersedes the earlier ad-hoc "Shoeb A" chat.
+
+**Next step:** wait for engineering's update on case 74655041; re-test
+`POST /api/illustrate` (`mode: "reference"`) against prod once they report
+a fix. No code/config change expected on our side.
