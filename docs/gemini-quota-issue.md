@@ -106,3 +106,17 @@ it's on Craig to do (not something the AI/assistant can do on his behalf).
 **Next step:** check Billing Report for `01B748-4456A9-46184A` — if
 balance is genuinely $0, add funds via Cloud Console, then re-test
 `POST /api/illustrate`.
+
+**RULED OUT same day (2026-08-22):** checked the actual AI Studio Billing
+page (signed in as `copperhh@gmail.com`) — the account has a real
+**$25.00 credit balance, Prepay, added Aug 20 2026**, well before this
+check, and "Viola House 2" is listed among the projects using this
+billing account. So the balance is NOT $0 — the Billing Support AI chat's
+diagnosis was wrong. Re-tested `POST /api/illustrate` immediately after
+confirming the funded balance: **identical `429`,
+`free_tier_requests limit: 0`** error, no change at all. This confirms
+the issue is NOT an unfunded-prepay-account problem. Back to the original
+theory: a genuine Google-side provisioning/quota-sync bug tying this
+project+model to free-tier quota despite a funded paid account. Nothing
+left to try on our end — still waiting on the forum reply / live support
+case.
