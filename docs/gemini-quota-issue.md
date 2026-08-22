@@ -138,6 +138,10 @@ email updates. **Case number: `74655041`** (opened under
 `copperhh@gmail.com`). This is now the canonical reference for follow-up —
 supersedes the earlier ad-hoc "Shoeb A" chat.
 
+**Expected response:** the specialist team will reach out within **2–3
+business days** (per Joseph, i.e. by ~Aug 26–27 2026), **via email to
+`copperhh@gmail.com`**. Watch that inbox.
+
 **Next step:** wait for engineering's update on case 74655041; re-test
 `POST /api/illustrate` (`mode: "reference"`) against prod once they report
 a fix. No code/config change expected on our side.
