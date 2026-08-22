@@ -82,3 +82,27 @@ Viola House is fully usable without AI illustration:
   (`mode: "reference"`) directly against prod. Still `429
   RESOURCE_EXHAUSTED`, still `generate_content_free_tier_requests limit: 0`
   on `gemini-3.1-flash-image`. No change — still purely waiting on Google.
+
+## New lead: unfunded Prepay balance (2026-08-22, Google Cloud Billing Support chat)
+
+Craig opened the in-console "Chat with Billing Support" AI on
+`gen-lang-client-0151804612` ("Viola House 2") and got a plausible new
+explanation, distinct from the earlier "provisioning-sync bug" theory:
+
+> When you linked a billing account, the project transitioned from Free
+> Tier to Paid Tier — so free-tier quota is set to 0 by design. The
+> billing account is Tier 1 (Prepay) with a **net cost of $0.00**. Prepay
+> accounts require a **positive, pre-funded balance** to make requests;
+> Free Trial promotional credit cannot cover this. Fix: Console → Billing
+> → Overview → Make a Payment / Add Funds to deposit the minimum required
+> balance — paid quota then initializes automatically.
+
+This fits the symptom (quota pinned at exactly 0, tagged FreeTier) better
+than a transient sync bug. **Not yet verified** — Google's AI chat carries
+its own accuracy disclaimer, so confirm the actual balance via the Billing
+Report link before funding anything. This is a real money transaction, so
+it's on Craig to do (not something the AI/assistant can do on his behalf).
+
+**Next step:** check Billing Report for `01B748-4456A9-46184A` — if
+balance is genuinely $0, add funds via Cloud Console, then re-test
+`POST /api/illustrate`.
