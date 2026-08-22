@@ -18,9 +18,11 @@ import { cn } from '@/lib/cn'
 
 export function IllustratePhase({
   book,
+  onGoToPages,
   onGoToPublish,
 }: {
   book: Book
+  onGoToPages: () => void
   onGoToPublish: () => void
 }) {
   const online = useOnline()
@@ -37,8 +39,9 @@ export function IllustratePhase({
   const hasCover = Boolean(book.style.characterSheet)
   const canGeneratePages = canGenerate && hasCover
 
+  const hasPages = pages.length > 0
   const readyCount = pages.filter((p) => p.imageStatus === 'ready').length
-  const allDone = pages.length > 0 && readyCount === pages.length
+  const allDone = hasPages && readyCount === pages.length
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -58,41 +61,47 @@ export function IllustratePhase({
         </Banner>
       )}
 
-      <div className="mt-8 flex items-end justify-between gap-3">
-        <div>
-          <h2 className="font-display text-xl font-semibold">
-            Step 2 · Your pages{' '}
-            <span className="text-muted">
-              ({readyCount}/{pages.length})
-            </span>
-          </h2>
-          <p className="mt-0.5 text-sm text-muted">
-            {hasCover
-              ? 'Illustrate every page in your cover’s style — all at once or one at a time.'
-              : 'Create your cover above first — it sets the look every page will match. (You can still upload your own art on any page.)'}
-          </p>
-        </div>
-        {hasCover && (
-          <GenerateAll
-            book={book}
-            pages={pages}
-            disabled={!canGeneratePages}
-            onDone={() => {}}
-          />
-        )}
-      </div>
+      {!hasPages ? (
+        <NoPagesYet onGoToPages={onGoToPages} />
+      ) : (
+        <>
+          <div className="mt-8 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl font-semibold">
+                Step 2 · Your pages{' '}
+                <span className="text-muted">
+                  ({readyCount}/{pages.length})
+                </span>
+              </h2>
+              <p className="mt-0.5 text-sm text-muted">
+                {hasCover
+                  ? 'Illustrate every page in your cover’s style — all at once or one at a time.'
+                  : 'Create your cover above first — it sets the look every page will match. (You can still upload your own art on any page.)'}
+              </p>
+            </div>
+            {hasCover && (
+              <GenerateAll
+                book={book}
+                pages={pages}
+                disabled={!canGeneratePages}
+                onDone={() => {}}
+              />
+            )}
+          </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {pages.map((page) => (
-          <PageCard
-            key={page.id}
-            book={book}
-            page={page}
-            canGenerate={canGeneratePages}
-            onNoKey={() => setAvailable(false)}
-          />
-        ))}
-      </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {pages.map((page) => (
+              <PageCard
+                key={page.id}
+                book={book}
+                page={page}
+                canGenerate={canGeneratePages}
+                onNoKey={() => setAvailable(false)}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {allDone && (
         <div className="mt-8 flex justify-end">
@@ -104,6 +113,35 @@ export function IllustratePhase({
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+// ---- Empty state: no pages yet ---------------------------------------------
+
+// If the story hasn't been split into pages yet, the Illustrate step has
+// nothing to show. Rather than a confusing blank area, point the way back to
+// the Pages step so the flow never dead-ends.
+function NoPagesYet({ onGoToPages }: { onGoToPages: () => void }) {
+  return (
+    <div className="mt-8 rounded-2xl border border-border bg-surface p-6 text-center">
+      <div className="text-4xl" aria-hidden>
+        📄
+      </div>
+      <h2 className="mt-3 font-display text-xl font-semibold">
+        Step 2 · Your pages
+      </h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+        Your story hasn’t been split into pages yet. Head to the{' '}
+        <strong>Pages</strong> step to divide your writing into book pages —
+        then come back here and each page will be ready to illustrate.
+      </p>
+      <button
+        onClick={onGoToPages}
+        className="mt-5 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg"
+      >
+        Go to Pages →
+      </button>
     </div>
   )
 }
