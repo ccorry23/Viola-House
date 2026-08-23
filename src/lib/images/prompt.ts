@@ -37,6 +37,30 @@ export function buildPagePrompt(style: StylePromptInput, pageText: string): stri
 }
 
 /**
+ * Prompt for refining an existing page illustration: keep the picture as the
+ * starting point and apply only the specific change the author asked for,
+ * preserving everything else. The current image is passed to the model as the
+ * input to edit.
+ */
+export function buildRefinePrompt(
+  style: StylePromptInput,
+  instruction: string
+): string {
+  return [
+    BASE_STYLE,
+    styleClause(style),
+    'Here is an existing illustration. Use it as the starting point and make ' +
+      `only this change: "${instruction.trim()}".`,
+    'Preserve everything else exactly — the same characters (identical faces, ' +
+      'colors, proportions, and clothing), the same composition, the same art ' +
+      'style, and the same palette. Edit the provided image; do not redraw it ' +
+      'from scratch.',
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+/**
  * Prompt for the book's cover — the first image the author dials in. It sets the
  * look for the whole book and is reused as the style/character reference on
  * every page.

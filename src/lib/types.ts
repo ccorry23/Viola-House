@@ -59,6 +59,8 @@ export interface Page {
   index: number
   text: string
   image?: Blob
+  /** Prior image versions, most-recent first, kept so a change can be undone. */
+  imageHistory?: Blob[]
   imageStatus: ImageStatus
   /** Whether the current image was AI-generated or uploaded by a human. */
   imageSource?: 'ai' | 'upload'

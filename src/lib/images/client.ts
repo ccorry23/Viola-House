@@ -88,4 +88,22 @@ export async function generatePageImage(
   })
 }
 
+/**
+ * Refine an existing page image: keep the current picture and apply one change
+ * the author described. The current image is sent along for the model to edit.
+ */
+export async function refinePageImage(
+  style: StyleLock,
+  currentImage: Blob,
+  instruction: string
+): Promise<Blob> {
+  const baseImageB64 = await blobToBase64(currentImage)
+  return callIllustrate({
+    mode: 'refine',
+    style: stylePayload(style),
+    baseImageB64,
+    instruction,
+  })
+}
+
 export { IllustrateError }

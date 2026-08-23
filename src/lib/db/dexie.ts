@@ -85,3 +85,50 @@ export async function patchPage(
     await db.pages.put({ ...existing, ...patch, id, updatedAt: Date.now() })
   })
 }
+
+/** How many previous images to keep per page for undo. */
+const MAX_IMAGE_HISTORY = 5
+
+/**
+ * Replace a page's image while pushing the previous one onto its undo history.
+ * Used when the author accepts a tweaked / regenerated / uploaded image, so a
+ * change can always be walked back.
+ */
+export async function setPageImageWithHistory(
+  id: string,
+  image: Blob,
+  source: 'ai' | 'upload'
+): Promise<void> {
+  await db.transaction('rw', db.pages, async () => {
+    const existing = await db.pages.get(id)
+    if (!existing) return
+    const history = existing.image
+      ? [existing.image, ...(existing.imageHistory ?? [])].slice(0, MAX_IMAGE_HISTORY)
+      : existing.imageHistory ?? []
+    await db.pages.put({
+      ...existing,
+      image,
+      imageHistory: history,
+      imageStatus: 'ready',
+      imageSource: source,
+      updatedAt: Date.now(),
+    })
+  })
+}
+
+/** Undo: restore the most recent previous image from a page's history. */
+export async function undoPageImage(id: string): Promise<void> {
+  await db.transaction('rw', db.pages, async () => {
+    const existing = await db.pages.get(id)
+    if (!existing) return
+    const [prev, ...rest] = existing.imageHistory ?? []
+    if (!prev) return
+    await db.pages.put({
+      ...existing,
+      image: prev,
+      imageHistory: rest,
+      imageStatus: 'ready',
+      updatedAt: Date.now(),
+    })
+  })
+}

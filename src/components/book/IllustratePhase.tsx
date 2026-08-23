@@ -3,11 +3,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import toast from 'react-hot-toast'
-import { db, getPages, patchPage, patchBook } from '@/lib/db/dexie'
+import {
+  db,
+  getPages,
+  patchPage,
+  patchBook,
+  setPageImageWithHistory,
+  undoPageImage,
+} from '@/lib/db/dexie'
 import {
   checkImageAvailability,
   generatePageImage,
   generateReferenceSheet,
+  refinePageImage,
   IllustrateError,
 } from '@/lib/images/client'
 import { useOnline } from '@/lib/hooks/useOnline'
@@ -372,9 +380,28 @@ function PageCard({
   const trim = TRIM_SIZES[book.trimSize]
   const aspect = trim.w / trim.h
   const url = useBlobUrl(page.image)
-  const generating = page.imageStatus === 'generating'
 
-  async function generate() {
+  // A candidate is a freshly generated/tweaked image awaiting the author's
+  // yes/no. It lives only in local state — the saved image is never touched
+  // until she accepts, so a bad change can't destroy a picture she liked.
+  const [candidate, setCandidate] = useState<Blob | null>(null)
+  const candidateUrl = useBlobUrl(candidate)
+  const [suggestOpen, setSuggestOpen] = useState(false)
+  const [instruction, setInstruction] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const generatingInitial = page.imageStatus === 'generating'
+  const hasImage = page.imageStatus === 'ready' && Boolean(page.image)
+  const canUndo = (page.imageHistory?.length ?? 0) > 0
+  const working = busy || generatingInitial
+
+  function handleError(e: unknown) {
+    if (e instanceof IllustrateError && e.code === 'no_key') onNoKey()
+    toast.error(e instanceof Error ? e.message : 'Generation failed')
+  }
+
+  // First image for a page (nothing to preserve): write it straight in.
+  async function generateInitial() {
     await patchPage(page.id, { imageStatus: 'generating' })
     try {
       const freshBook = await db.books.get(book.id)
@@ -389,9 +416,64 @@ function PageCard({
       })
     } catch (e) {
       await patchPage(page.id, { imageStatus: 'error' })
-      if (e instanceof IllustrateError && e.code === 'no_key') onNoKey()
-      toast.error(e instanceof Error ? e.message : 'Generation failed')
+      handleError(e)
     }
+  }
+
+  // Start over: a brand-new image from scratch, held for review.
+  async function startOver() {
+    setSuggestOpen(false)
+    setBusy(true)
+    try {
+      const freshBook = await db.books.get(book.id)
+      const blob = await generatePageImage(
+        freshBook?.style ?? book.style,
+        page.text
+      )
+      setCandidate(blob)
+    } catch (e) {
+      handleError(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Suggest a change: keep the current picture, apply one tweak, held for review.
+  async function applySuggestion() {
+    if (!instruction.trim() || !page.image) return
+    setBusy(true)
+    try {
+      const freshBook = await db.books.get(book.id)
+      const blob = await refinePageImage(
+        freshBook?.style ?? book.style,
+        page.image,
+        instruction.trim()
+      )
+      setCandidate(blob)
+    } catch (e) {
+      handleError(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function acceptCandidate() {
+    if (!candidate) return
+    await setPageImageWithHistory(page.id, candidate, 'ai')
+    setCandidate(null)
+    setInstruction('')
+    setSuggestOpen(false)
+    toast.success(`Page ${page.index + 1} updated`)
+  }
+
+  function keepCurrent() {
+    setCandidate(null)
+    toast('Kept your current picture')
+  }
+
+  async function undo() {
+    await undoPageImage(page.id)
+    toast('Went back to the previous picture')
   }
 
   async function uploadImage(file: File | undefined) {
@@ -400,14 +482,69 @@ function PageCard({
       toast.error('Please choose an image file')
       return
     }
-    await patchPage(page.id, {
-      image: file,
-      imageStatus: 'ready',
-      imageSource: 'upload',
-    })
+    await setPageImageWithHistory(page.id, file, 'upload')
     toast.success(`Page ${page.index + 1} illustration added`)
   }
 
+  // ---- Review view: compare the new picture against the current one --------
+  if (candidate) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-accent bg-surface">
+        <div className="border-b border-border bg-surface-2 px-3 py-2 text-sm font-semibold">
+          Page {page.index + 1} · Do you like this new one?
+        </div>
+        <div className="grid grid-cols-2 gap-px bg-border">
+          <figure className="bg-surface">
+            <div
+              className="relative w-full bg-surface-2"
+              style={{ aspectRatio: String(aspect) }}
+            >
+              {url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt="Current" className="h-full w-full object-cover" />
+              )}
+            </div>
+            <figcaption className="px-2 py-1 text-center text-xs text-muted">
+              Now
+            </figcaption>
+          </figure>
+          <figure className="bg-surface">
+            <div
+              className="relative w-full bg-surface-2"
+              style={{ aspectRatio: String(aspect) }}
+            >
+              {candidateUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={candidateUrl} alt="New" className="h-full w-full object-cover" />
+              )}
+              <span className="absolute left-1.5 top-1.5 rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg">
+                New
+              </span>
+            </div>
+            <figcaption className="px-2 py-1 text-center text-xs text-muted">
+              New
+            </figcaption>
+          </figure>
+        </div>
+        <div className="flex gap-2 p-3">
+          <button
+            onClick={acceptCandidate}
+            className="flex-1 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-accent-fg"
+          >
+            ✓ Use the new one
+          </button>
+          <button
+            onClick={keepCurrent}
+            className="flex-1 rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+          >
+            Keep the old one
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ---- Normal view ---------------------------------------------------------
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface">
       <div
@@ -422,7 +559,7 @@ function PageCard({
             🎨
           </div>
         )}
-        {generating && (
+        {working && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-sm font-semibold text-white">
             Painting…
           </div>
@@ -430,7 +567,7 @@ function PageCard({
         <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-xs font-semibold text-white">
           Page {page.index + 1}
         </span>
-        {page.imageStatus === 'ready' && page.imageSource && (
+        {hasImage && page.imageSource && (
           <span className="absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-xs font-semibold text-white">
             {page.imageSource === 'upload' ? '🖐 Yours' : '🎨 AI'}
           </span>
@@ -438,41 +575,127 @@ function PageCard({
       </div>
       <div className="p-3">
         <p className="line-clamp-2 text-sm text-muted">{page.text}</p>
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={generate}
-            disabled={!canGenerate || generating}
-            className={cn(
-              'flex-1 rounded-xl px-3 py-2 text-sm font-semibold disabled:opacity-50',
-              page.imageStatus === 'ready'
-                ? 'border border-border hover:bg-surface-2'
-                : 'bg-accent text-accent-fg'
-            )}
-          >
-            {generating
-              ? 'Painting…'
-              : page.imageStatus === 'ready'
-                ? 'Regenerate'
+
+        {hasImage ? (
+          suggestOpen ? (
+            // Suggestion box: type a change, apply it.
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-semibold text-muted">
+                What would you like changed?
+              </label>
+              <input
+                value={instruction}
+                onChange={(e) => setInstruction(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && instruction.trim() && !working) {
+                    applySuggestion()
+                  }
+                }}
+                autoFocus
+                placeholder="e.g. give her a red coat, or make it nighttime"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+              />
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={applySuggestion}
+                  disabled={!canGenerate || working || !instruction.trim()}
+                  className="flex-1 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
+                >
+                  {working ? 'Painting…' : 'Make this change'}
+                </button>
+                <button
+                  onClick={() => {
+                    setSuggestOpen(false)
+                    setInstruction('')
+                  }}
+                  disabled={working}
+                  className="rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Keep / suggest a change / start over / undo.
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={() => setSuggestOpen(true)}
+                disabled={!canGenerate || working}
+                title={
+                  canGenerate
+                    ? 'Keep this picture but change something about it'
+                    : 'Turn on AI illustration to change this picture'
+                }
+                className="flex-1 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
+              >
+                ✏️ Suggest a change
+              </button>
+              <button
+                onClick={startOver}
+                disabled={!canGenerate || working}
+                title="Make a completely new picture for this page"
+                className="rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2 disabled:opacity-50"
+              >
+                🔄 Start over
+              </button>
+              <label
+                className="cursor-pointer whitespace-nowrap rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+                title="Upload your own illustration for this page"
+              >
+                ↑ Upload your own
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    uploadImage(e.target.files?.[0])
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+              {canUndo && (
+                <button
+                  onClick={undo}
+                  disabled={working}
+                  title="Go back to the previous picture"
+                  className="rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2 disabled:opacity-50"
+                >
+                  ↩ Undo
+                </button>
+              )}
+            </div>
+          )
+        ) : (
+          // No image yet: generate or upload.
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={generateInitial}
+              disabled={!canGenerate || working}
+              className="flex-1 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
+            >
+              {working
+                ? 'Painting…'
                 : page.imageStatus === 'error'
                   ? 'Try again'
                   : 'Generate with AI'}
-          </button>
-          <label
-            className="cursor-pointer whitespace-nowrap rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2"
-            title="Upload your own illustration for this page"
-          >
-            ↑ Upload your own
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                uploadImage(e.target.files?.[0])
-                e.target.value = ''
-              }}
-            />
-          </label>
-        </div>
+            </button>
+            <label
+              className="cursor-pointer whitespace-nowrap rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+              title="Upload your own illustration for this page"
+            >
+              ↑ Upload your own
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  uploadImage(e.target.files?.[0])
+                  e.target.value = ''
+                }}
+              />
+            </label>
+          </div>
+        )}
       </div>
     </div>
   )
