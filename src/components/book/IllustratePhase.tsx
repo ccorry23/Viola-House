@@ -10,12 +10,14 @@ import {
   patchBook,
   setPageImageWithHistory,
   undoPageImage,
+  setBookCoverWithHistory,
+  undoBookCover,
 } from '@/lib/db/dexie'
 import {
   checkImageAvailability,
   generatePageImage,
   generateReferenceSheet,
-  refinePageImage,
+  refineImage,
   IllustrateError,
 } from '@/lib/images/client'
 import { useOnline } from '@/lib/hooks/useOnline'
@@ -53,7 +55,7 @@ export function IllustratePhase({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <CoverPanel book={book} />
+      <CoverPanel book={book} available={available} />
 
       {available === false && (
         <Banner tone="warn">
@@ -156,22 +158,54 @@ function NoPagesYet({ onGoToPages }: { onGoToPages: () => void }) {
 
 // ---- Style panel ------------------------------------------------------------
 
-function CoverPanel({ book }: { book: Book }) {
+function CoverPanel({
+  book,
+  available,
+}: {
+  book: Book
+  available: boolean | null
+}) {
   const online = useOnline()
   const [descriptor, setDescriptor] = useState(book.style.descriptor)
   const [palette, setPalette] = useState(book.style.palette)
   const [characters, setCharacters] = useState(book.style.characters)
-  const [genRef, setGenRef] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [collapsed, setCollapsed] = useState(book.style.locked)
 
-  const sheetUrl = useBlobUrl(book.style.characterSheet)
+  // Like the page cards: a candidate is a freshly made cover awaiting yes/no,
+  // held in state so the saved cover is untouched until she accepts.
+  const [candidate, setCandidate] = useState<Blob | null>(null)
+  const [suggestOpen, setSuggestOpen] = useState(false)
+  const [instruction, setInstruction] = useState('')
 
+  const sheetUrl = useBlobUrl(book.style.characterSheet)
+  const candidateUrl = useBlobUrl(candidate)
+
+  const hasCover = Boolean(book.style.characterSheet)
+  const canUndo = (book.style.coverHistory?.length ?? 0) > 0
+  const aiReady = available === true && online
+
+  // Merge against fresh DB state so a text-field save never clobbers a cover
+  // that was just written (accept / undo / upload).
   async function saveStyle(patch: Partial<StyleLock>) {
-    await patchBook(book.id, { style: { ...book.style, ...patch } })
+    await db.transaction('rw', db.books, async () => {
+      const b = await db.books.get(book.id)
+      if (!b) return
+      await db.books.put({
+        ...b,
+        style: { ...b.style, ...patch },
+        updatedAt: Date.now(),
+      })
+    })
   }
 
-  async function makeReference() {
-    setGenRef(true)
+  function handleError(e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'Could not generate')
+  }
+
+  // First cover (nothing to preserve): write it straight in.
+  async function generateInitialCover() {
+    setBusy(true)
     try {
       await saveStyle({ descriptor, palette, characters })
       const blob = await generateReferenceSheet({
@@ -180,18 +214,70 @@ function CoverPanel({ book }: { book: Book }) {
         palette,
         characters,
       })
-      await saveStyle({
+      await saveStyle({ characterSheet: blob })
+      toast.success('Cover ready')
+    } catch (e) {
+      handleError(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Start over: a brand-new cover from the description, held for review.
+  async function startOver() {
+    setSuggestOpen(false)
+    setBusy(true)
+    try {
+      await saveStyle({ descriptor, palette, characters })
+      const blob = await generateReferenceSheet({
+        ...book.style,
         descriptor,
         palette,
         characters,
-        characterSheet: blob,
       })
-      toast.success('Cover ready')
+      setCandidate(blob)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not generate')
+      handleError(e)
     } finally {
-      setGenRef(false)
+      setBusy(false)
     }
+  }
+
+  // Suggest a change: keep the current cover, apply one tweak, held for review.
+  async function applySuggestion() {
+    if (!instruction.trim() || !book.style.characterSheet) return
+    setBusy(true)
+    try {
+      const blob = await refineImage(
+        book.style,
+        book.style.characterSheet,
+        instruction.trim()
+      )
+      setCandidate(blob)
+    } catch (e) {
+      handleError(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function acceptCandidate() {
+    if (!candidate) return
+    await setBookCoverWithHistory(book.id, candidate)
+    setCandidate(null)
+    setInstruction('')
+    setSuggestOpen(false)
+    toast.success('Cover updated')
+  }
+
+  function keepCurrent() {
+    setCandidate(null)
+    toast('Kept your current cover')
+  }
+
+  async function undo() {
+    await undoBookCover(book.id)
+    toast('Went back to the previous cover')
   }
 
   async function uploadReference(file: File | undefined) {
@@ -200,7 +286,7 @@ function CoverPanel({ book }: { book: Book }) {
       toast.error('Please choose an image file')
       return
     }
-    await saveStyle({ descriptor, palette, characters, characterSheet: file })
+    await setBookCoverWithHistory(book.id, file)
     toast.success('Cover set — the AI will match this look')
   }
 
@@ -231,15 +317,48 @@ function CoverPanel({ book }: { book: Book }) {
     )
   }
 
+  const thumb = (
+    <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-2">
+      {sheetUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={sheetUrl} alt="Cover" className="h-full w-full object-cover" />
+      ) : (
+        <span className="text-3xl opacity-40" aria-hidden>
+          🖼️
+        </span>
+      )}
+      {busy && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs font-semibold text-white">
+          Painting…
+        </div>
+      )}
+    </div>
+  )
+
+  const uploadLabel = (
+    <label className="cursor-pointer rounded-xl border border-border px-3.5 py-2 text-center text-sm font-semibold hover:bg-surface-2">
+      ↑ Upload your own
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          uploadReference(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
+    </label>
+  )
+
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
       <h2 className="font-display text-lg font-semibold">
         Step 1 · Create your cover
       </h2>
       <p className="mt-1 text-sm text-muted">
-        Start with one image — your cover. Describe the look, generate it, and
-        regenerate until the theme feels right. This cover sets the style the AI
-        matches on every page.
+        Start with one image — your cover. Describe the look and generate it.
+        Once you have a cover you can suggest a change or start over until it
+        feels right. This cover sets the style the AI matches on every page.
       </p>
 
       <div className="mt-4 grid gap-3">
@@ -274,67 +393,169 @@ function CoverPanel({ book }: { book: Book }) {
         </Field>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-2">
-            {sheetUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={sheetUrl}
-                alt="Cover"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span className="text-3xl opacity-40" aria-hidden>
-                🖼️
-              </span>
-            )}
+      {candidate ? (
+        // Review: compare the new cover against the current one.
+        <div className="mt-4">
+          <p className="mb-2 text-sm font-semibold">
+            Do you like this new cover?
+          </p>
+          <div className="grid max-w-md grid-cols-2 gap-3">
+            <figure>
+              <div className="aspect-square w-full overflow-hidden rounded-xl border border-border bg-surface-2">
+                {sheetUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={sheetUrl} alt="Current cover" className="h-full w-full object-cover" />
+                )}
+              </div>
+              <figcaption className="mt-1 text-center text-xs text-muted">
+                Now
+              </figcaption>
+            </figure>
+            <figure>
+              <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-accent bg-surface-2">
+                {candidateUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={candidateUrl} alt="New cover" className="h-full w-full object-cover" />
+                )}
+                <span className="absolute left-1.5 top-1.5 rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg">
+                  New
+                </span>
+              </div>
+              <figcaption className="mt-1 text-center text-xs text-muted">
+                New
+              </figcaption>
+            </figure>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="mt-3 flex max-w-md gap-2">
             <button
-              onClick={makeReference}
-              disabled={genRef || !online || !descriptor.trim()}
-              className="rounded-xl border border-border px-3.5 py-2 text-sm font-semibold hover:bg-surface-2 disabled:opacity-50"
+              onClick={acceptCandidate}
+              className="flex-1 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-accent-fg"
             >
-              {genRef
-                ? 'Generating…'
-                : book.style.characterSheet
-                  ? 'Regenerate cover'
-                  : 'Generate cover'}
+              ✓ Use the new one
             </button>
-            <label className="cursor-pointer rounded-xl border border-border px-3.5 py-2 text-center text-sm font-semibold hover:bg-surface-2">
-              ↑ Upload your own
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  uploadReference(e.target.files?.[0])
-                  e.target.value = ''
-                }}
-              />
-            </label>
+            <button
+              onClick={keepCurrent}
+              className="flex-1 rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+            >
+              Keep the old one
+            </button>
           </div>
         </div>
+      ) : (
+        <div className="mt-4 flex flex-wrap items-start gap-4">
+          <div className="flex items-start gap-3">
+            {thumb}
+            <div className="flex min-w-[12rem] flex-col gap-2">
+              {!hasCover ? (
+                <>
+                  <button
+                    onClick={generateInitialCover}
+                    disabled={busy || !aiReady || !descriptor.trim()}
+                    title={
+                      aiReady
+                        ? undefined
+                        : 'Turn on AI illustration, or upload your own cover'
+                    }
+                    className="rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
+                  >
+                    {busy ? 'Painting…' : 'Generate cover'}
+                  </button>
+                  {uploadLabel}
+                </>
+              ) : suggestOpen ? (
+                <div className="min-w-[16rem]">
+                  <label className="mb-1 block text-xs font-semibold text-muted">
+                    What would you like changed?
+                  </label>
+                  <input
+                    value={instruction}
+                    onChange={(e) => setInstruction(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && instruction.trim() && !busy) {
+                        applySuggestion()
+                      }
+                    }}
+                    autoFocus
+                    placeholder="e.g. add a moon, or make the title area calmer"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                  />
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={applySuggestion}
+                      disabled={!aiReady || busy || !instruction.trim()}
+                      className="flex-1 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
+                    >
+                      {busy ? 'Painting…' : 'Make this change'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSuggestOpen(false)
+                        setInstruction('')
+                      }}
+                      disabled={busy}
+                      className="rounded-xl border border-border px-3 py-2 text-sm font-semibold hover:bg-surface-2 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setSuggestOpen(true)}
+                    disabled={!aiReady || busy}
+                    title={
+                      aiReady
+                        ? 'Keep this cover but change something about it'
+                        : 'Turn on AI illustration to change this cover'
+                    }
+                    className="rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
+                  >
+                    ✏️ Suggest a change
+                  </button>
+                  <button
+                    onClick={startOver}
+                    disabled={!aiReady || busy || !descriptor.trim()}
+                    title="Make a completely new cover"
+                    className="rounded-xl border border-border px-3.5 py-2 text-sm font-semibold hover:bg-surface-2 disabled:opacity-50"
+                  >
+                    🔄 Start over
+                  </button>
+                  {uploadLabel}
+                  {canUndo && (
+                    <button
+                      onClick={undo}
+                      disabled={busy}
+                      title="Go back to the previous cover"
+                      className="rounded-xl border border-border px-3.5 py-2 text-sm font-semibold hover:bg-surface-2 disabled:opacity-50"
+                    >
+                      ↩ Undo
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
-        <button
-          onClick={() => {
-            saveStyle({ descriptor, palette, characters, locked: true })
-            setCollapsed(true)
-          }}
-          disabled={!book.style.characterSheet}
-          title={
-            book.style.characterSheet
-              ? 'Use this cover and move on to your pages'
-              : 'Generate or upload a cover first'
-          }
-          className="ml-auto rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
-        >
-          Use this cover →
-        </button>
-      </div>
+          <button
+            onClick={() => {
+              saveStyle({ descriptor, palette, characters, locked: true })
+              setCollapsed(true)
+            }}
+            disabled={!hasCover}
+            title={
+              hasCover
+                ? 'Use this cover and move on to your pages'
+                : 'Generate or upload a cover first'
+            }
+            className="ml-auto rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
+          >
+            Use this cover →
+          </button>
+        </div>
+      )}
 
-      {book.style.characterSheet ? (
+      {hasCover ? (
         <p className="mt-3 rounded-lg bg-[color:var(--ok)]/12 px-3 py-2 text-xs text-[color:var(--ok)]">
           ✓ Cover set. Now illustrate your pages below — all at once or one at a
           time.
@@ -444,7 +665,7 @@ function PageCard({
     setBusy(true)
     try {
       const freshBook = await db.books.get(book.id)
-      const blob = await refinePageImage(
+      const blob = await refineImage(
         freshBook?.style ?? book.style,
         page.image,
         instruction.trim()

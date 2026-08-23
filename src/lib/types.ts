@@ -24,6 +24,8 @@ export interface StyleLock {
   locked: boolean
   /** PNG reference sheet (characters/style anchor), stored locally. */
   characterSheet?: Blob
+  /** Prior cover versions, most-recent first, kept so a change can be undone. */
+  coverHistory?: Blob[]
   /** Short description of recurring characters, fed into every page prompt. */
   characters: string
 }

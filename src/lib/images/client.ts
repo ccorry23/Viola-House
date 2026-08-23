@@ -89,10 +89,11 @@ export async function generatePageImage(
 }
 
 /**
- * Refine an existing page image: keep the current picture and apply one change
- * the author described. The current image is sent along for the model to edit.
+ * Refine an existing image (a page illustration or the cover): keep the current
+ * picture and apply one change the author described. The current image is sent
+ * along for the model to edit.
  */
-export async function refinePageImage(
+export async function refineImage(
   style: StyleLock,
   currentImage: Blob,
   instruction: string

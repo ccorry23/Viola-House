@@ -132,3 +132,43 @@ export async function undoPageImage(id: string): Promise<void> {
     })
   })
 }
+
+/**
+ * Replace a book's cover (the style anchor) while pushing the previous cover
+ * onto its undo history. Reads fresh inside the transaction so it never clobbers
+ * a concurrent style-field save. Used when the author accepts a tweaked /
+ * regenerated / uploaded cover.
+ */
+export async function setBookCoverWithHistory(
+  bookId: string,
+  cover: Blob
+): Promise<void> {
+  await db.transaction('rw', db.books, async () => {
+    const b = await db.books.get(bookId)
+    if (!b) return
+    const prev = b.style.characterSheet
+    const history = prev
+      ? [prev, ...(b.style.coverHistory ?? [])].slice(0, MAX_IMAGE_HISTORY)
+      : b.style.coverHistory ?? []
+    await db.books.put({
+      ...b,
+      style: { ...b.style, characterSheet: cover, coverHistory: history },
+      updatedAt: Date.now(),
+    })
+  })
+}
+
+/** Undo: restore the most recent previous cover from a book's history. */
+export async function undoBookCover(bookId: string): Promise<void> {
+  await db.transaction('rw', db.books, async () => {
+    const b = await db.books.get(bookId)
+    if (!b) return
+    const [prev, ...rest] = b.style.coverHistory ?? []
+    if (!prev) return
+    await db.books.put({
+      ...b,
+      style: { ...b.style, characterSheet: prev, coverHistory: rest },
+      updatedAt: Date.now(),
+    })
+  })
+}
