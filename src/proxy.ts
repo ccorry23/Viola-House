@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 // sent to /login. Offline PWA requests are served from the service worker cache
 // and never reach this code.
 
-const PUBLIC_ROUTES = ['/login']
+const PUBLIC_ROUTES = ['/login', '/auth/callback']
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some((route) => pathname.startsWith(route))

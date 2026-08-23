@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { OnlineIndicator } from './OnlineIndicator'
+import { AuthMenu } from './AuthMenu'
 
 export function TopBar() {
   return (
@@ -9,7 +10,10 @@ export function TopBar() {
           <span aria-hidden>📚</span>
           <span>Viola House</span>
         </Link>
-        <OnlineIndicator />
+        <div className="flex items-center gap-3">
+          <OnlineIndicator />
+          <AuthMenu />
+        </div>
       </div>
     </header>
   )
