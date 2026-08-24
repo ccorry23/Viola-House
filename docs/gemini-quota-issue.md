@@ -1,6 +1,17 @@
 # Gemini image generation — stuck on free-tier quota despite paid billing
 
-**Status:** Open, escalated to Google (live support chat + developer forum). Not fixable
+**Status: RESOLVED 2026-08-24.** Google fixed the quota provisioning on their side
+(case 74655041). Re-tested `POST /api/illustrate` (mode: "reference") against prod:
+**HTTP 200 with a real 1408×768 PNG (2.9 MB)** — no more 429. No app/config change was
+needed on our end; it started working once Google's backend caught up, exactly as
+predicted. AI illustration (cover + pages + the suggest/start-over flow) is now fully
+live at https://viola-house.vercel.app.
+
+---
+
+_Historical record of the outage (2026-08-20 → 2026-08-24) below._
+
+Was: Open, escalated to Google (live support chat + developer forum). Not fixable
 from our side — everything on the app/config side is confirmed correct.
 
 ## The problem
