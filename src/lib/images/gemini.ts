@@ -17,19 +17,21 @@ export class GeminiProvider implements ImageProvider {
 
   async generate({
     prompt,
-    referenceImageB64,
-    referenceMime = 'image/png',
+    referenceImages = [],
   }: GenerateImageParams): Promise<Buffer> {
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) throw new MissingKeyError('GEMINI_API_KEY is not set')
 
     const ai = new GoogleGenAI({ apiKey })
 
+    // The prompt goes first, then each reference image (cover, then any
+    // character references) so the model has them all as visual context.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parts: any[] = [{ text: prompt }]
-    if (referenceImageB64) {
+    for (const ref of referenceImages) {
+      if (!ref?.b64) continue
       parts.push({
-        inlineData: { mimeType: referenceMime, data: referenceImageB64 },
+        inlineData: { mimeType: ref.mime ?? 'image/png', data: ref.b64 },
       })
     }
 

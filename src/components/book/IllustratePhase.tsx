@@ -12,18 +12,24 @@ import {
   undoPageImage,
   setBookCoverWithHistory,
   undoBookCover,
+  addCastMember,
+  patchCastMember,
+  removeCastMember,
+  setCastMemberImage,
+  undoCastMemberImage,
 } from '@/lib/db/dexie'
 import {
   checkImageAvailability,
   generatePageImage,
   generateReferenceSheet,
+  generateCharacterImage,
   refineImage,
   IllustrateError,
 } from '@/lib/images/client'
 import { useOnline } from '@/lib/hooks/useOnline'
 import { useBlobUrl } from '@/lib/hooks/useBlobUrl'
 import { TRIM_SIZES } from '@/lib/kdp/constants'
-import type { Book, Page, StyleLock } from '@/lib/types'
+import type { Book, CastMember, Page, StyleLock } from '@/lib/types'
 import { cn } from '@/lib/cn'
 
 export function IllustratePhase({
@@ -70,6 +76,8 @@ export function IllustratePhase({
           are safe and waiting.
         </Banner>
       )}
+
+      <CastPanel book={book} canGenerate={canGenerate} />
 
       {!hasPages ? (
         <NoPagesYet onGoToPages={onGoToPages} />
@@ -152,6 +160,218 @@ function NoPagesYet({ onGoToPages }: { onGoToPages: () => void }) {
       >
         Go to Pages →
       </button>
+    </div>
+  )
+}
+
+// ---- Cast: recurring character references -----------------------------------
+
+/**
+ * Optional. Reference pictures for characters who recur across pages but may
+ * not be on the cover. Each reference is fed into every page generation so the
+ * character stays consistent throughout the book.
+ */
+function CastPanel({
+  book,
+  canGenerate,
+}: {
+  book: Book
+  canGenerate: boolean
+}) {
+  const cast = book.cast ?? []
+  const [open, setOpen] = useState(cast.length > 0)
+
+  async function add() {
+    await addCastMember(book.id)
+    setOpen(true)
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-surface p-4">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <span>
+          <span className="font-display text-base font-semibold">
+            Your characters{' '}
+            <span className="text-sm font-normal text-muted">(optional)</span>
+          </span>
+          <span className="mt-0.5 block text-sm text-muted">
+            Add a picture for any character who shows up on several pages —
+            especially if they’re not on the cover. The AI will match them on
+            every page.
+          </span>
+        </span>
+        <span className="shrink-0 text-sm text-muted">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="mt-4">
+          {cast.length > 0 && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {cast.map((member) => (
+                <CastCard
+                  key={member.id}
+                  book={book}
+                  member={member}
+                  canGenerate={canGenerate}
+                />
+              ))}
+            </div>
+          )}
+          <button
+            onClick={add}
+            className="mt-3 rounded-xl border border-border px-3.5 py-2 text-sm font-semibold hover:bg-surface-2"
+          >
+            + Add a character
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CastCard({
+  book,
+  member,
+  canGenerate,
+}: {
+  book: Book
+  member: CastMember
+  canGenerate: boolean
+}) {
+  const [name, setName] = useState(member.name)
+  const [description, setDescription] = useState(member.description ?? '')
+  const [busy, setBusy] = useState(false)
+  const url = useBlobUrl(member.image)
+
+  const hasImage = Boolean(member.image)
+  const canUndo = (member.imageHistory?.length ?? 0) > 0
+  const canMakeArt = canGenerate && Boolean(name.trim())
+
+  function handleError(e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'Could not generate')
+  }
+
+  async function generate() {
+    if (!name.trim()) return
+    setBusy(true)
+    try {
+      // Persist the latest name/description first so generation uses them.
+      await patchCastMember(book.id, member.id, {
+        name: name.trim(),
+        description: description.trim(),
+      })
+      const freshBook = await db.books.get(book.id)
+      const blob = await generateCharacterImage(
+        freshBook?.style ?? book.style,
+        name.trim(),
+        description.trim()
+      )
+      await setCastMemberImage(book.id, member.id, blob)
+      toast.success(`${name.trim() || 'Character'} ready`)
+    } catch (e) {
+      handleError(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function upload(file: File | undefined) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file')
+      return
+    }
+    await setCastMemberImage(book.id, member.id, file)
+    toast.success('Character picture added')
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-background p-3">
+      <div className="flex gap-3">
+        <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-2">
+          {url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt={name || 'Character'} className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-2xl opacity-40" aria-hidden>
+              🧑‍🎨
+            </span>
+          )}
+          {busy && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs font-semibold text-white">
+              Painting…
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => patchCastMember(book.id, member.id, { name: name.trim() })}
+            placeholder="Character name"
+            className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm font-semibold outline-none focus:border-accent"
+          />
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onBlur={() =>
+              patchCastMember(book.id, member.id, {
+                description: description.trim(),
+              })
+            }
+            placeholder="e.g. round brown bear, red cap, yellow scarf"
+            className="mt-1.5 w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-accent"
+          />
+        </div>
+      </div>
+
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <button
+          onClick={generate}
+          disabled={!canMakeArt || busy}
+          title={
+            !canGenerate
+              ? 'Turn on AI illustration to draw this character'
+              : !name.trim()
+                ? 'Give the character a name first'
+                : 'Draw this character in your book’s style'
+          }
+          className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg disabled:opacity-50"
+        >
+          {busy ? 'Painting…' : hasImage ? 'Regenerate' : 'Generate'}
+        </button>
+        <label className="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-surface-2">
+          ↑ Upload
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              upload(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
+        </label>
+        {canUndo && (
+          <button
+            onClick={() => undoCastMemberImage(book.id, member.id)}
+            disabled={busy}
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-surface-2 disabled:opacity-50"
+          >
+            ↩ Undo
+          </button>
+        )}
+        <button
+          onClick={() => removeCastMember(book.id, member.id)}
+          disabled={busy}
+          className="ml-auto rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted hover:bg-surface-2 disabled:opacity-50"
+        >
+          Remove
+        </button>
+      </div>
     </div>
   )
 }
@@ -628,7 +848,8 @@ function PageCard({
       const freshBook = await db.books.get(book.id)
       const blob = await generatePageImage(
         freshBook?.style ?? book.style,
-        page.text
+        page.text,
+        freshBook?.cast ?? book.cast ?? []
       )
       await patchPage(page.id, {
         image: blob,
@@ -649,7 +870,8 @@ function PageCard({
       const freshBook = await db.books.get(book.id)
       const blob = await generatePageImage(
         freshBook?.style ?? book.style,
-        page.text
+        page.text,
+        freshBook?.cast ?? book.cast ?? []
       )
       setCandidate(blob)
     } catch (e) {
@@ -950,7 +1172,8 @@ function GenerateAll({
           const freshBook = await db.books.get(book.id)
           const blob = await generatePageImage(
             freshBook?.style ?? book.style,
-            page.text
+            page.text,
+            freshBook?.cast ?? book.cast ?? []
           )
           await patchPage(page.id, {
             image: blob,

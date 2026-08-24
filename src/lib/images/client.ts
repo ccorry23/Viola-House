@@ -1,6 +1,6 @@
 'use client'
 
-import type { StyleLock } from '@/lib/types'
+import type { CastMember, StyleLock } from '@/lib/types'
 
 export async function blobToBase64(blob: Blob): Promise<string> {
   const buf = await blob.arrayBuffer()
@@ -72,18 +72,53 @@ export async function generateReferenceSheet(style: StyleLock): Promise<Blob> {
   return callIllustrate({ mode: 'reference', style: stylePayload(style) })
 }
 
-/** Generate one page illustration, conditioned on the reference sheet. */
+/**
+ * Generate one page illustration, conditioned on the cover and — where given —
+ * on reference images for recurring characters so they stay consistent even
+ * when they don't appear on the cover.
+ */
 export async function generatePageImage(
   style: StyleLock,
-  pageText: string
+  pageText: string,
+  cast: CastMember[] = []
+): Promise<Blob> {
+  const referenceImageB64 = style.characterSheet
+    ? await blobToBase64(style.characterSheet)
+    : undefined
+  const castPayload = await Promise.all(
+    cast
+      .filter((c) => c.name.trim() && c.image)
+      .map(async (c) => ({
+        name: c.name.trim(),
+        imageB64: await blobToBase64(c.image!),
+      }))
+  )
+  return callIllustrate({
+    mode: 'page',
+    style: stylePayload(style),
+    pageText,
+    referenceImageB64,
+    cast: castPayload,
+  })
+}
+
+/**
+ * Generate a reference portrait for one recurring character, in the book's
+ * style (matched to the cover when there is one).
+ */
+export async function generateCharacterImage(
+  style: StyleLock,
+  name: string,
+  description: string
 ): Promise<Blob> {
   const referenceImageB64 = style.characterSheet
     ? await blobToBase64(style.characterSheet)
     : undefined
   return callIllustrate({
-    mode: 'page',
+    mode: 'character',
     style: stylePayload(style),
-    pageText,
+    characterName: name,
+    characterDescription: description,
     referenceImageB64,
   })
 }

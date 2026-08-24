@@ -34,6 +34,23 @@ export function emptyStyleLock(): StyleLock {
   return { descriptor: '', palette: '', locked: false, characters: '' }
 }
 
+/**
+ * A recurring character with its own reference picture. Fed into every page
+ * generation alongside the cover so a character that isn't on the cover still
+ * stays visually consistent across pages. Images are local-only (never synced),
+ * like the cover.
+ */
+export interface CastMember {
+  id: string
+  /** Name used in page prompts (e.g. "Bramble the bear"). */
+  name: string
+  /** Optional extra description to steer generation of this character. */
+  description?: string
+  /** The character's reference image (drawn, uploaded, or generated). */
+  image?: Blob
+  imageHistory?: Blob[]
+}
+
 export interface Book {
   id: string
   title: string
@@ -48,6 +65,8 @@ export interface Book {
   pageBreaks: number[]
   breaksLocked: boolean
   style: StyleLock
+  /** Recurring characters with reference images, matched on every page. */
+  cast?: CastMember[]
   /** Snapshot of the last published version (null until first publish). */
   published: PublishedSnapshot | null
   createdAt: number

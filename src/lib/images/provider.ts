@@ -8,11 +8,19 @@
  */
 import { imageProvider } from '@/lib/env'
 
+export interface ReferenceImage {
+  /** base64, no data: prefix. */
+  b64: string
+  mime?: string
+}
+
 export interface GenerateImageParams {
   prompt: string
-  /** Optional reference image (base64, no data: prefix) for consistency. */
-  referenceImageB64?: string
-  referenceMime?: string
+  /**
+   * Optional reference images for consistency, in priority order (e.g. the
+   * cover first, then character references). All are passed to the model.
+   */
+  referenceImages?: ReferenceImage[]
 }
 
 export interface ImageProvider {

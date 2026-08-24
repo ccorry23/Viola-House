@@ -1,7 +1,7 @@
 'use client'
 
 import Dexie, { type EntityTable } from 'dexie'
-import type { Book, Page } from '../types'
+import type { Book, CastMember, Page } from '../types'
 
 /**
  * Local-first store. This IndexedDB database is the app's source of truth and
@@ -171,4 +171,83 @@ export async function undoBookCover(bookId: string): Promise<void> {
       updatedAt: Date.now(),
     })
   })
+}
+
+// ---- Cast (recurring character references) ---------------------------------
+
+/**
+ * Apply a change to a book's cast, computed from the current cast, inside a
+ * fresh-read transaction so concurrent edits don't clobber each other.
+ */
+async function mutateCast(
+  bookId: string,
+  fn: (cast: CastMember[]) => CastMember[]
+): Promise<void> {
+  await db.transaction('rw', db.books, async () => {
+    const b = await db.books.get(bookId)
+    if (!b) return
+    await db.books.put({
+      ...b,
+      cast: fn(b.cast ?? []),
+      updatedAt: Date.now(),
+    })
+  })
+}
+
+/** Add a new (empty) cast member and return its id. */
+export async function addCastMember(bookId: string): Promise<string> {
+  const id = crypto.randomUUID()
+  await mutateCast(bookId, (cast) => [...cast, { id, name: '' }])
+  return id
+}
+
+/** Patch a cast member's name/description (not the image). */
+export async function patchCastMember(
+  bookId: string,
+  memberId: string,
+  patch: Partial<Pick<CastMember, 'name' | 'description'>>
+): Promise<void> {
+  await mutateCast(bookId, (cast) =>
+    cast.map((m) => (m.id === memberId ? { ...m, ...patch } : m))
+  )
+}
+
+/** Remove a cast member entirely. */
+export async function removeCastMember(
+  bookId: string,
+  memberId: string
+): Promise<void> {
+  await mutateCast(bookId, (cast) => cast.filter((m) => m.id !== memberId))
+}
+
+/** Set a cast member's reference image, keeping the previous one for undo. */
+export async function setCastMemberImage(
+  bookId: string,
+  memberId: string,
+  image: Blob
+): Promise<void> {
+  await mutateCast(bookId, (cast) =>
+    cast.map((m) => {
+      if (m.id !== memberId) return m
+      const history = m.image
+        ? [m.image, ...(m.imageHistory ?? [])].slice(0, MAX_IMAGE_HISTORY)
+        : m.imageHistory ?? []
+      return { ...m, image, imageHistory: history }
+    })
+  )
+}
+
+/** Undo: restore a cast member's previous reference image. */
+export async function undoCastMemberImage(
+  bookId: string,
+  memberId: string
+): Promise<void> {
+  await mutateCast(bookId, (cast) =>
+    cast.map((m) => {
+      if (m.id !== memberId) return m
+      const [prev, ...rest] = m.imageHistory ?? []
+      if (!prev) return m
+      return { ...m, image: prev, imageHistory: rest }
+    })
+  )
 }

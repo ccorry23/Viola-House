@@ -118,6 +118,8 @@ export async function pullAndMergeBooks(): Promise<number> {
         locked:
           Boolean(row.style?.locked) && Boolean(local?.style.characterSheet),
       },
+      // Cast reference images are local-only (not synced); keep this device's.
+      cast: local?.cast,
       published: row.published ?? null,
       createdAt: local?.createdAt ?? cloudUpdated,
       updatedAt: cloudUpdated,
