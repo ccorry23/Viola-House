@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { patchBook, getPages, replacePages } from '@/lib/db/dexie'
 import {
   splitSentences,
   pagesFromBreaks,
   autoPageBreaks,
+  pageBreaksForTargetCount,
   validBreaks,
 } from '@/lib/pages/split'
 import type { Book, Page } from '@/lib/types'
@@ -63,6 +64,26 @@ export function PagesPhase({
   function autoSplit() {
     setBreaks(autoPageBreaks(book.manuscriptText))
     toast.success('Re-split into pages')
+  }
+
+  const [target, setTarget] = useState('')
+  // Seed the target box with a sensible starting point once the story is known.
+  useEffect(() => {
+    if (sentences.length > 0 && target === '') {
+      setTarget(String(Math.min(MIN_PAGE_COUNT, sentences.length)))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sentences.length])
+
+  function applyTargetCount() {
+    const n = Math.max(
+      1,
+      Math.min(Math.round(Number(target) || 1), sentences.length)
+    )
+    const next = pageBreaksForTargetCount(book.manuscriptText, n)
+    setBreaks(next)
+    const achieved = pagesFromBreaks(book.manuscriptText, next).length
+    toast.success(`Split into ${achieved} ${achieved === 1 ? 'page' : 'pages'}`)
   }
 
   async function lockPages() {
@@ -146,6 +167,46 @@ export function PagesPhase({
           )}
         </div>
       </div>
+
+      {!locked && (
+        <div className="mt-4 rounded-2xl border border-border bg-surface p-4">
+          <h3 className="font-display text-base font-semibold">Set page count</h3>
+          <p className="mt-0.5 text-sm text-muted">
+            Choose about how many pages you want. We’ll balance the story across
+            them, keeping related paragraphs together where we can — rather than
+            breaking after every sentence.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <label htmlFor="target-pages" className="text-sm font-semibold">
+              Target pages
+            </label>
+            <input
+              id="target-pages"
+              type="number"
+              min={1}
+              max={sentences.length}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') applyTargetCount()
+              }}
+              className="w-20 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            />
+            <button
+              onClick={applyTargetCount}
+              className="rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-accent-fg"
+            >
+              Set pages
+            </button>
+            <span className="text-xs text-muted">
+              KDP needs at least {MIN_PAGE_COUNT}. Your story has{' '}
+              {sentences.length}{' '}
+              {sentences.length === 1 ? 'sentence' : 'sentences'}, so that’s the
+              most pages possible.
+            </span>
+          </div>
+        </div>
+      )}
 
       {pages.length < MIN_PAGE_COUNT && (
         <p className="mt-3 rounded-lg bg-[color:var(--warn)]/12 px-3 py-2 text-xs text-[color:var(--warn)]">

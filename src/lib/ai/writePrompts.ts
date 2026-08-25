@@ -13,7 +13,21 @@ export const WRITER_SYSTEM =
   'unsafe for young children. Do not add commentary, headings, or notes — ' +
   'return only the story text itself, unless asked for ideas.'
 
-export type WriteMode = 'brainstorm' | 'draft' | 'continue' | 'rewrite'
+export const REVIEWER_SYSTEM =
+  'You are a warm, encouraging, and honest developmental editor who ' +
+  'specializes in children\'s picture books (roughly ages 2–7). You give ' +
+  'specific, constructive, actionable feedback that respects the author\'s ' +
+  'own story, plot, and voice. You critique ONLY the manuscript you are given. ' +
+  'You never rewrite the story, never write an alternative version, and never ' +
+  'invent a different story — you help the author strengthen exactly what they ' +
+  'wrote. Keep suggestions kind, concrete, and easy for a non-expert to act on.'
+
+export type WriteMode =
+  | 'brainstorm'
+  | 'draft'
+  | 'continue'
+  | 'rewrite'
+  | 'review'
 
 export interface WriteRequest {
   mode: WriteMode
@@ -24,7 +38,12 @@ export interface WriteRequest {
 }
 
 export function isJsonMode(mode: WriteMode): boolean {
-  return mode === 'brainstorm'
+  return mode === 'brainstorm' || mode === 'review'
+}
+
+/** Which persona to run a mode under. Review uses the editor, not the writer. */
+export function systemFor(mode: WriteMode): string {
+  return mode === 'review' ? REVIEWER_SYSTEM : WRITER_SYSTEM
 }
 
 export function buildWritePrompt(req: WriteRequest): string {
@@ -60,6 +79,24 @@ export function buildWritePrompt(req: WriteRequest): string {
           : ' to read more smoothly while keeping its meaning.') +
         ' Keep the same overall plot. Return only the rewritten story.\n\n' +
         `Story:\n"""\n${req.manuscript ?? ''}\n"""`
+      )
+    case 'review':
+      return (
+        'Read this children\'s picture-book manuscript in full and give ' +
+        'constructive feedback to strengthen THIS manuscript. Consider pacing, ' +
+        'character development, dialogue, plot holes or logic gaps, tone and ' +
+        'voice consistency, age-appropriateness, language and readability, and ' +
+        'overall structure — but only raise the points that actually apply. ' +
+        'Do NOT rewrite the story, do NOT provide an alternative version, and ' +
+        'do NOT invent new ideas — only feedback and specific suggestions tied ' +
+        'to what is written. Point to concrete moments in the text. ' +
+        'Return ONLY JSON of the form: ' +
+        '{"strengths": [up to 3 short encouraging strings about what already ' +
+        'works], "feedback": [{"area": short label e.g. "Pacing", ' +
+        '"observation": what you noticed in the manuscript, "suggestion": one ' +
+        'concrete, actionable improvement}]}. Include up to 8 feedback items, ' +
+        'most important first. No prose outside the JSON.\n\n' +
+        `Manuscript:\n"""\n${req.manuscript ?? ''}\n"""`
       )
   }
 }

@@ -3,7 +3,7 @@ import { generateText, MissingKeyError, writingAvailable } from '@/lib/ai/text'
 import {
   buildWritePrompt,
   isJsonMode,
-  WRITER_SYSTEM,
+  systemFor,
   type WriteRequest,
   type WriteMode,
 } from '@/lib/ai/writePrompts'
@@ -12,12 +12,28 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const MODES: WriteMode[] = ['brainstorm', 'draft', 'continue', 'rewrite']
+const MODES: WriteMode[] = [
+  'brainstorm',
+  'draft',
+  'continue',
+  'rewrite',
+  'review',
+]
 
 export interface Idea {
   title: string
   premise: string
   ageRange: string
+}
+
+interface ReviewItem {
+  area: string
+  observation: string
+  suggestion: string
+}
+interface ReviewResult {
+  strengths: string[]
+  feedback: ReviewItem[]
 }
 
 export async function POST(req: NextRequest) {
@@ -31,11 +47,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid mode' }, { status: 400 })
   }
   if (
-    (body.mode === 'continue' || body.mode === 'rewrite') &&
+    (body.mode === 'continue' ||
+      body.mode === 'rewrite' ||
+      body.mode === 'review') &&
     !body.manuscript?.trim()
   ) {
     return NextResponse.json(
-      { error: 'Write some of the story first.' },
+      {
+        error:
+          body.mode === 'review'
+            ? 'Add the manuscript you want reviewed first.'
+            : 'Write some of the story first.',
+      },
       { status: 400 }
     )
   }
@@ -43,7 +66,7 @@ export async function POST(req: NextRequest) {
   try {
     const raw = await generateText({
       prompt: buildWritePrompt(body),
-      system: WRITER_SYSTEM,
+      system: systemFor(body.mode),
       json: isJsonMode(body.mode),
     })
 
@@ -57,6 +80,28 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ideas: [], text: raw })
       }
       return NextResponse.json({ ideas })
+    }
+
+    if (body.mode === 'review') {
+      try {
+        const parsed = JSON.parse(raw)
+        const review: ReviewResult = {
+          strengths: Array.isArray(parsed?.strengths)
+            ? parsed.strengths.filter((s: unknown) => typeof s === 'string')
+            : [],
+          feedback: Array.isArray(parsed?.feedback)
+            ? parsed.feedback.filter(
+                (f: unknown): f is ReviewItem =>
+                  !!f &&
+                  typeof (f as ReviewItem).suggestion === 'string'
+              )
+            : [],
+        }
+        return NextResponse.json({ review })
+      } catch {
+        // If the model didn't return clean JSON, hand back the raw feedback.
+        return NextResponse.json({ text: raw.trim() })
+      }
     }
 
     return NextResponse.json({ text: raw.trim() })

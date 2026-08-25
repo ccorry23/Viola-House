@@ -8,9 +8,21 @@ export interface Idea {
   ageRange: string
 }
 
+export interface ReviewItem {
+  area: string
+  observation: string
+  suggestion: string
+}
+
+export interface ReviewResult {
+  strengths: string[]
+  feedback: ReviewItem[]
+}
+
 export interface WriteResult {
   text?: string
   ideas?: Idea[]
+  review?: ReviewResult
 }
 
 export interface WritePayload {

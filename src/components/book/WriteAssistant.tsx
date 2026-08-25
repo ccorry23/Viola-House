@@ -7,6 +7,7 @@ import {
   checkWritingAvailability,
   WriteError,
   type Idea,
+  type ReviewResult,
   type WritePayload,
 } from '@/lib/ai/writeClient'
 import type { WriteMode } from '@/lib/ai/writePrompts'
@@ -18,6 +19,7 @@ const MODES: { id: WriteMode; label: string; icon: string }[] = [
   { id: 'draft', label: 'Write a draft', icon: '✍️' },
   { id: 'continue', label: 'Continue', icon: '➡️' },
   { id: 'rewrite', label: 'Rewrite', icon: '✨' },
+  { id: 'review', label: 'Review & Suggest', icon: '🔎' },
 ]
 
 const REWRITE_PRESETS = [
@@ -43,40 +45,97 @@ export function WriteAssistant({
   const [loading, setLoading] = useState(false)
   const [text, setText] = useState<string | null>(null)
   const [ideas, setIdeas] = useState<Idea[] | null>(null)
+  const [review, setReview] = useState<ReviewResult | null>(null)
+  // The text to review — starts from the current story, but the author can
+  // paste or upload a different manuscript here without touching their draft.
+  const [reviewText, setReviewText] = useState('')
 
   useEffect(() => {
     checkWritingAvailability().then(setAvailable)
   }, [])
 
+  // Seed the review box with the current story the first time review is opened.
+  useEffect(() => {
+    if (mode === 'review' && !reviewText.trim()) setReviewText(manuscript)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  const reviewSource = reviewText.trim() || manuscript.trim()
   const canRun =
     available === true &&
     online &&
     !loading &&
-    (mode !== 'continue' && mode !== 'rewrite' ? true : manuscript.trim().length > 0)
+    (mode === 'continue' || mode === 'rewrite'
+      ? manuscript.trim().length > 0
+      : mode === 'review'
+        ? reviewSource.length > 0
+        : true)
 
   async function run(override?: Partial<WritePayload>) {
     setLoading(true)
     setText(null)
     setIdeas(null)
+    setReview(null)
     try {
       const payload: WritePayload = {
         mode,
         theme,
         premise,
         instruction,
-        manuscript,
+        manuscript: mode === 'review' ? reviewSource : manuscript,
         ...override,
       }
       const res = await callWrite(payload)
       if (res.ideas && res.ideas.length) setIdeas(res.ideas)
-      else if (res.text) setText(res.text)
-      else toast('No suggestion came back — try again.')
+      else if (res.review) setReview(res.review)
+      else if (res.text) {
+        // For review, never offer to apply text as the story — show it as feedback.
+        if (mode === 'review')
+          setReview({
+            strengths: [],
+            feedback: [{ area: 'Feedback', observation: '', suggestion: res.text }],
+          })
+        else setText(res.text)
+      } else toast('No suggestion came back — try again.')
     } catch (e) {
       if (e instanceof WriteError && e.code === 'no_key') setAvailable(false)
       toast.error(e instanceof Error ? e.message : 'Could not generate')
     } finally {
       setLoading(false)
     }
+  }
+
+  function onUploadManuscript(file: File | undefined) {
+    if (!file) return
+    const okType =
+      /\.(txt|md|markdown|text)$/i.test(file.name) ||
+      file.type.startsWith('text/')
+    if (!okType) {
+      toast.error('Please choose a plain-text file (.txt or .md).')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => setReviewText(String(reader.result ?? ''))
+    reader.onerror = () => toast.error('Could not read that file')
+    reader.readAsText(file)
+  }
+
+  function copyReview() {
+    if (!review) return
+    const lines: string[] = []
+    if (review.strengths.length) {
+      lines.push('What’s working:')
+      review.strengths.forEach((s) => lines.push(`• ${s}`))
+      lines.push('')
+    }
+    review.feedback.forEach((f) => {
+      lines.push(f.area ? `${f.area}` : 'Feedback')
+      if (f.observation) lines.push(f.observation)
+      lines.push(`Suggestion: ${f.suggestion}`)
+      lines.push('')
+    })
+    navigator.clipboard?.writeText(lines.join('\n').trim())
+    toast.success('Feedback copied')
   }
 
   function writeFromIdea(idea: Idea) {
@@ -112,6 +171,7 @@ export function WriteAssistant({
               setMode(m.id)
               setText(null)
               setIdeas(null)
+              setReview(null)
             }}
             className={cn(
               'rounded-full px-3 py-1.5 text-sm font-semibold transition',
@@ -168,6 +228,42 @@ export function WriteAssistant({
             ))}
           </div>
         )}
+        {mode === 'review' && (
+          <div>
+            <p className="mb-1.5 text-sm text-muted">
+              Paste or upload the manuscript you want feedback on. It’s filled
+              with your current story to start — edits here don’t change your
+              draft. You’ll get suggestions to improve what’s written, not a
+              rewrite.
+            </p>
+            <textarea
+              value={reviewText}
+              onChange={(e) => setReviewText(e.target.value)}
+              rows={6}
+              placeholder="Paste your manuscript here…"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            />
+            <div className="mt-1.5 flex items-center gap-3 text-xs text-muted">
+              <label className="cursor-pointer rounded-lg border border-border px-2.5 py-1 font-semibold hover:bg-surface-2">
+                ↑ Upload a .txt file
+                <input
+                  type="file"
+                  accept=".txt,.md,.markdown,.text,text/plain"
+                  className="hidden"
+                  onChange={(e) => {
+                    onUploadManuscript(e.target.files?.[0])
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+              <span>
+                {reviewSource
+                  ? `${reviewSource.split(/\s+/).length} words to review`
+                  : 'No text yet'}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <button
@@ -183,7 +279,9 @@ export function WriteAssistant({
               ? 'Write a draft'
               : mode === 'continue'
                 ? 'Continue the story'
-                : 'Rewrite the story'}
+                : mode === 'rewrite'
+                  ? 'Rewrite the story'
+                  : 'Review my manuscript'}
       </button>
 
       {/* Ideas output */}
@@ -206,6 +304,50 @@ export function WriteAssistant({
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Review output — feedback only, never applied to the story */}
+      {review && (
+        <div className="mt-4 space-y-3">
+          {review.strengths.length > 0 && (
+            <div className="rounded-xl border border-border bg-background p-3">
+              <p className="text-sm font-semibold">✅ What’s working</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted">
+                {review.strengths.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {review.feedback.map((f, i) => (
+            <div key={i} className="rounded-xl border border-border bg-background p-3">
+              <p className="text-sm font-semibold">{f.area || 'Feedback'}</p>
+              {f.observation && (
+                <p className="mt-1 text-sm text-muted">{f.observation}</p>
+              )}
+              <p className="mt-1.5 text-sm">
+                <span className="font-semibold text-accent">Suggestion: </span>
+                {f.suggestion}
+              </p>
+            </div>
+          ))}
+          {(review.strengths.length > 0 || review.feedback.length > 0) && (
+            <div className="flex gap-2">
+              <button
+                onClick={copyReview}
+                className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"
+              >
+                Copy feedback
+              </button>
+              <button
+                onClick={() => run()}
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-muted hover:bg-surface-2"
+              >
+                Review again
+              </button>
+            </div>
+          )}
         </div>
       )}
 
