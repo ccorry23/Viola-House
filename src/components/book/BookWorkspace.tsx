@@ -32,7 +32,7 @@ export function BookWorkspace({ bookId }: { bookId: string }) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="border-b border-border bg-surface/40">
+      <div className="sticky top-14 z-20 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto w-full max-w-5xl px-5 pt-4 sm:px-8">
           <div className="flex items-center gap-3">
             <Link
