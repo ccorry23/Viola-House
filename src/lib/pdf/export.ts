@@ -2,7 +2,7 @@
 
 import { inToPx, interiorPageBoxIn, TRIM_SIZES } from '@/lib/kdp/constants'
 import type { Book, Page } from '@/lib/types'
-import { buildInteriorPdf } from './interior'
+import { buildInteriorPdf, type InteriorPageInput } from './interior'
 import { buildCoverPdf } from './cover'
 import { upscaleToPng } from './upscale'
 
@@ -30,23 +30,26 @@ export async function exportBook(
   const hPx = inToPx(box.h)
 
   const sorted = [...pages].sort((a, b) => a.index - b.index)
-  const interiorPages: { text: string; pngBytes: Uint8Array | null }[] = []
+  const interiorPages: InteriorPageInput[] = []
   let missingImages = 0
 
   // The cover front prefers the dedicated cover image (the style anchor the
   // author dialed in first); it falls back to page 1's art if none is set.
   let frontBytes: Uint8Array | null = book.style.characterSheet
-    ? await upscaleToPng(book.style.characterSheet, wPx, hPx)
+    ? (await upscaleToPng(book.style.characterSheet, wPx, hPx)).png
     : null
 
   for (const p of sorted) {
     let png: Uint8Array | null = null
+    let band: InteriorPageInput['band']
     if (p.image) {
-      png = await upscaleToPng(p.image, wPx, hPx)
+      const up = await upscaleToPng(p.image, wPx, hPx)
+      png = up.png
+      band = up.band
     } else {
       missingImages++
     }
-    interiorPages.push({ text: p.text, pngBytes: png })
+    interiorPages.push({ text: p.text, pngBytes: png, band })
     if (p.index === 0 && png && !frontBytes) frontBytes = png
   }
 
