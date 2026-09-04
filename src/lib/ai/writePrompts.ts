@@ -24,14 +24,10 @@ export const REVIEWER_SYSTEM =
 
 export const MARKETER_SYSTEM =
   'You are an expert children\'s-book marketing copywriter. You write warm, ' +
-  'vivid, honest Amazon product descriptions that make parents and ' +
-  'grandparents want to buy a picture book for a young child. You capture the ' +
-  'story\'s heart and the gentle lesson it teaches, without giving away the ' +
-  'ending. You never invent characters, events, or facts that are not in the ' +
-  'manuscript. Keep it concise (about 120–180 words) in short, inviting ' +
-  'sentences, and finish with one line about the age range and who the book is ' +
-  'perfect for. Return ONLY the description text — no title, no headings, no ' +
-  'markdown symbols, no surrounding quotation marks.'
+  'honest, appealing Amazon listing copy for picture books that makes parents ' +
+  'and grandparents want to buy. You base everything ONLY on the manuscript — ' +
+  'never invent characters, events, or facts that are not in it. Follow the ' +
+  'exact output format each task specifies, and never give away the ending.'
 
 export type WriteMode =
   | 'brainstorm'
@@ -40,6 +36,8 @@ export type WriteMode =
   | 'rewrite'
   | 'review'
   | 'description'
+  | 'subtitle'
+  | 'keywords'
 
 export interface WriteRequest {
   mode: WriteMode
@@ -52,13 +50,20 @@ export interface WriteRequest {
 }
 
 export function isJsonMode(mode: WriteMode): boolean {
-  return mode === 'brainstorm' || mode === 'review'
+  return (
+    mode === 'brainstorm' ||
+    mode === 'review' ||
+    mode === 'subtitle' ||
+    mode === 'keywords'
+  )
 }
 
 /** Which persona to run a mode under. */
 export function systemFor(mode: WriteMode): string {
   if (mode === 'review') return REVIEWER_SYSTEM
-  if (mode === 'description') return MARKETER_SYSTEM
+  if (mode === 'description' || mode === 'subtitle' || mode === 'keywords') {
+    return MARKETER_SYSTEM
+  }
   return WRITER_SYSTEM
 }
 
@@ -104,9 +109,35 @@ export function buildWritePrompt(req: WriteRequest): string {
         (req.author?.trim() ? ` Author: ${req.author.trim()}.` : '') +
         ' Base it only on the manuscript below — capture its story, ' +
         'characters, tone, and the gentle lesson, and entice the reader ' +
-        'without giving away the ending. Finish with one line naming a ' +
-        'sensible age range for the reading level and who it is perfect for. ' +
-        'Return only the description text.\n\n' +
+        'without giving away the ending. Keep it concise (about 120–180 ' +
+        'words) in short, inviting sentences, and finish with one line naming ' +
+        'a sensible age range for the reading level and who it is perfect for. ' +
+        'Return ONLY the description text — no title, no headings, no markdown ' +
+        'symbols, no surrounding quotation marks.\n\n' +
+        `Manuscript:\n"""\n${req.manuscript ?? ''}\n"""`
+      )
+    case 'subtitle':
+      return (
+        'Suggest 4 short subtitle options for this children\'s picture book, ' +
+        'for the Amazon/KDP "Subtitle" field.' +
+        (req.title?.trim() ? ` The title is "${req.title.trim()}".` : '') +
+        ' Each subtitle is a brief, appealing phrase (roughly 4–12 words) that ' +
+        'hints at the story\'s heart or the gentle lesson — the kind that sits ' +
+        'under a picture-book title (e.g. "A Story About Learning to Lose ' +
+        'Without a Meltdown"). Base them only on the manuscript. Return ONLY a ' +
+        'JSON array of 4 strings, no prose outside the JSON.\n\n' +
+        `Manuscript:\n"""\n${req.manuscript ?? ''}\n"""`
+      )
+    case 'keywords':
+      return (
+        'Suggest 7 search keyword phrases a parent or grandparent might type ' +
+        'on Amazon to find this children\'s picture book (for KDP\'s 7 keyword ' +
+        'slots). Each phrase is 2–5 words, lowercase, no punctuation, and ' +
+        'relevant to the story\'s theme, characters, feelings, and audience ' +
+        '(e.g. "learning to lose", "good sportsmanship for kids", "board game ' +
+        'picture book"). Vary them; avoid repeating the exact title. Base them ' +
+        'only on the manuscript. Return ONLY a JSON array of 7 strings, no ' +
+        'prose outside the JSON.\n\n' +
         `Manuscript:\n"""\n${req.manuscript ?? ''}\n"""`
       )
     case 'review':

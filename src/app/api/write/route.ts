@@ -19,6 +19,8 @@ const MODES: WriteMode[] = [
   'rewrite',
   'review',
   'description',
+  'subtitle',
+  'keywords',
 ]
 
 export interface Idea {
@@ -47,20 +49,24 @@ export async function POST(req: NextRequest) {
   if (!MODES.includes(body.mode)) {
     return NextResponse.json({ error: 'Invalid mode' }, { status: 400 })
   }
-  if (
-    (body.mode === 'continue' ||
-      body.mode === 'rewrite' ||
-      body.mode === 'review' ||
-      body.mode === 'description') &&
-    !body.manuscript?.trim()
-  ) {
+  const NEEDS_MANUSCRIPT: WriteMode[] = [
+    'continue',
+    'rewrite',
+    'review',
+    'description',
+    'subtitle',
+    'keywords',
+  ]
+  if (NEEDS_MANUSCRIPT.includes(body.mode) && !body.manuscript?.trim()) {
     return NextResponse.json(
       {
         error:
           body.mode === 'review'
             ? 'Add the manuscript you want reviewed first.'
-            : body.mode === 'description'
-              ? 'Write your story first, then I can describe it.'
+            : body.mode === 'description' ||
+                body.mode === 'subtitle' ||
+                body.mode === 'keywords'
+              ? 'Write your story first, then I can help with the listing.'
               : 'Write some of the story first.',
       },
       { status: 400 }
@@ -84,6 +90,26 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ideas: [], text: raw })
       }
       return NextResponse.json({ ideas })
+    }
+
+    if (body.mode === 'subtitle' || body.mode === 'keywords') {
+      let items: string[] = []
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          items = parsed
+            .filter((s: unknown) => typeof s === 'string')
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+        }
+      } catch {
+        // Fall back: split the raw text into lines.
+        items = raw
+          .split('\n')
+          .map((l) => l.replace(/^[-*\d.\s"]+|["\s]+$/g, '').trim())
+          .filter(Boolean)
+      }
+      return NextResponse.json({ items })
     }
 
     if (body.mode === 'review') {

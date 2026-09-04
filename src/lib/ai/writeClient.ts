@@ -23,6 +23,8 @@ export interface WriteResult {
   text?: string
   ideas?: Idea[]
   review?: ReviewResult
+  /** For 'subtitle' / 'keywords': the generated list. */
+  items?: string[]
 }
 
 export interface WritePayload {

@@ -15,7 +15,7 @@ import {
 import { TRIM_SIZES, spineWidthIn } from '@/lib/kdp/constants'
 import type { Book } from '@/lib/types'
 import { cn } from '@/lib/cn'
-import { DescriptionWriter } from './DescriptionWriter'
+import { ListingHelper } from './ListingHelper'
 
 const KDP_BOOKSHELF = 'https://kdp.amazon.com/en_US/bookshelf'
 
@@ -205,8 +205,8 @@ export function PublishPhase({ book }: { book: Book }) {
         )}
       </section>
 
-      {/* Amazon description */}
-      <DescriptionWriter book={book} />
+      {/* Amazon listing helper */}
+      <ListingHelper book={book} />
 
       {/* KDP handoff */}
       <section className="rounded-2xl border border-border bg-surface p-5">
