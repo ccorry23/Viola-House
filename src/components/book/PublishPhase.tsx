@@ -5,7 +5,13 @@ import Link from 'next/link'
 import { useLiveQuery } from 'dexie-react-hooks'
 import toast from 'react-hot-toast'
 import { getPages, patchBook } from '@/lib/db/dexie'
-import { exportBook, downloadPdf, fileStem, type ExportResult } from '@/lib/pdf/export'
+import {
+  exportBook,
+  downloadPdf,
+  fileStem,
+  type ExportResult,
+  type ExportProgress,
+} from '@/lib/pdf/export'
 import { TRIM_SIZES, spineWidthIn } from '@/lib/kdp/constants'
 import type { Book } from '@/lib/types'
 import { cn } from '@/lib/cn'
@@ -16,6 +22,7 @@ export function PublishPhase({ book }: { book: Book }) {
   const pages = useLiveQuery(() => getPages(book.id), [book.id]) ?? []
   const [result, setResult] = useState<ExportResult | null>(null)
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState<ExportProgress | null>(null)
   const trim = TRIM_SIZES[book.trimSize]
 
   const illustrated = pages.filter((p) => p.imageStatus === 'ready').length
@@ -37,8 +44,9 @@ export function PublishPhase({ book }: { book: Book }) {
       return
     }
     setBusy(true)
+    setProgress({ done: 0, total: 1, label: 'Getting things ready…' })
     try {
-      const res = await exportBook(book, pages)
+      const res = await exportBook(book, pages, setProgress)
       setResult(res)
       if (res.missingImages > 0) {
         toast(
@@ -52,6 +60,7 @@ export function PublishPhase({ book }: { book: Book }) {
       toast.error(e instanceof Error ? e.message : 'Export failed')
     } finally {
       setBusy(false)
+      setProgress(null)
     }
   }
 
@@ -98,7 +107,34 @@ export function PublishPhase({ book }: { book: Book }) {
           {busy ? 'Building PDFs…' : 'Generate print files'}
         </button>
 
-        {result && (
+        {busy && progress && (
+          <div className="mt-4" aria-live="polite">
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
+              <div
+                className="h-full rounded-full bg-accent transition-all duration-300 ease-out"
+                style={{
+                  width: `${Math.round(
+                    (progress.done / Math.max(1, progress.total)) * 100
+                  )}%`,
+                }}
+              />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs text-muted">
+              <span>{progress.label}</span>
+              <span>
+                {Math.round(
+                  (progress.done / Math.max(1, progress.total)) * 100
+                )}
+                %
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              This can take a minute — please keep this page open.
+            </p>
+          </div>
+        )}
+
+        {!busy && result && (
           <div className="mt-4 space-y-3">
             <div className="rounded-xl bg-surface-2 p-3 text-sm">
               <p className="font-semibold">

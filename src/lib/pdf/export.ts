@@ -13,6 +13,14 @@ export interface ExportResult {
   missingImages: number
 }
 
+/** Progress update during a (minute-long) export, for a status bar. */
+export interface ExportProgress {
+  done: number
+  total: number
+  label: string
+}
+export type ProgressFn = (p: ExportProgress) => void
+
 /**
  * Produce the two KDP print files entirely in the browser. Each illustration is
  * upscaled (via canvas) to the interior page's pixel target so it prints at
@@ -22,7 +30,8 @@ export interface ExportResult {
  */
 export async function exportBook(
   book: Book,
-  pages: Page[]
+  pages: Page[],
+  onProgress?: ProgressFn
 ): Promise<ExportResult> {
   const trim = TRIM_SIZES[book.trimSize]
   const box = interiorPageBoxIn(trim)
@@ -33,13 +42,30 @@ export async function exportBook(
   const interiorPages: InteriorPageInput[] = []
   let missingImages = 0
 
+  // Progress: one step per page image, plus a cover-art step and two
+  // assembly steps. Yielding between steps lets the status bar paint.
+  const hasCoverArt = Boolean(book.style.characterSheet)
+  const total = (hasCoverArt ? 1 : 0) + sorted.length + 2
+  let done = 0
+  const tick = (label: string) => onProgress?.({ done, total, label })
+  const yieldToUi = () => new Promise((r) => setTimeout(r, 0))
+
+  tick('Getting things ready…')
+
   // The cover front prefers the dedicated cover image (the style anchor the
   // author dialed in first); it falls back to page 1's art if none is set.
-  let frontBytes: Uint8Array | null = book.style.characterSheet
-    ? (await upscaleToPng(book.style.characterSheet, wPx, hPx)).png
-    : null
+  let frontBytes: Uint8Array | null = null
+  if (hasCoverArt) {
+    tick('Preparing the cover…')
+    frontBytes = (await upscaleToPng(book.style.characterSheet!, wPx, hPx)).png
+    done++
+    tick('Preparing the cover…')
+  }
 
+  let n = 0
   for (const p of sorted) {
+    n++
+    tick(`Preparing page ${n} of ${sorted.length}…`)
     let png: Uint8Array | null = null
     let band: InteriorPageInput['band']
     if (p.image) {
@@ -51,13 +77,20 @@ export async function exportBook(
     }
     interiorPages.push({ text: p.text, pngBytes: png, band })
     if (p.index === 0 && png && !frontBytes) frontBytes = png
+    done++
+    tick(`Preparing page ${n} of ${sorted.length}…`)
+    await yieldToUi()
   }
 
+  tick('Putting the book together…')
   const interior = await buildInteriorPdf({
     title: book.title,
     trimSize: book.trimSize,
     pages: interiorPages,
   })
+  done++
+  tick('Building the cover…')
+  await yieldToUi()
 
   const cover = await buildCoverPdf({
     title: book.title,
@@ -65,6 +98,8 @@ export async function exportBook(
     pageCount: interior.pageCount,
     frontPngBytes: frontBytes,
   })
+  done++
+  tick('Almost done…')
 
   return {
     interior: interior.bytes,
