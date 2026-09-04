@@ -23,6 +23,10 @@ const WHITE = rgb(1, 1, 1)
 
 export interface BuildCoverInput {
   title: string
+  /** Author name for the byline (blank to omit). */
+  author?: string
+  /** Whether to print the title + author band on the front cover. */
+  showTitle?: boolean
   trimSize: TrimId
   /** Interior page count — drives spine width. */
   pageCount: number
@@ -40,6 +44,8 @@ export interface BuildCoverInput {
  */
 export async function buildCoverPdf({
   title,
+  author,
+  showTitle = true,
   trimSize,
   pageCount,
   frontPngBytes,
@@ -94,16 +100,23 @@ export async function buildCoverPdf({
     })
   }
 
-  // Front title (bottom of the front cover, inside the trim safe area). Over
-  // art it uses the same soft adaptive scrim as the interior pages; on a plain
-  // colored cover it's just dark ink.
-  {
+  // Front title + author (bottom of the front cover, inside the trim safe
+  // area). Optional — skipped when the author turns it off (e.g. the art
+  // already has the title). Over art it uses the same soft adaptive scrim as
+  // the interior pages; on a plain colored cover it's just dark ink.
+  if (showTitle) {
     const safeLeft = frontX + inset
     const safeRight = wPt - bleedPt - inset
     const maxW = safeRight - safeLeft
-    const { size, lines } = fitFontSize(title, display, maxW, hPt * 0.3, 34, 16)
+    const { size, lines } = fitFontSize(title, display, maxW, hPt * 0.28, 34, 16)
     const lineH = size * 1.3
     const textBottom = inset + bleedPt + 6
+
+    const byline = author?.trim() ? `by ${author.trim()}` : ''
+    const authorSize = Math.max(11, Math.round(size * 0.42))
+    const extraLines = byline
+      ? [{ text: byline, size: authorSize, lineH: authorSize * 1.3, font: body }]
+      : []
 
     if (frontPngBytes) {
       await drawAdaptiveTextBand({
@@ -117,9 +130,13 @@ export async function buildCoverPdf({
         size,
         lineH,
         font: display,
+        extraLines,
       })
     } else {
-      let ty = textBottom + lines.length * lineH - size
+      const gap = byline ? Math.max(3, size * 0.2) : 0
+      const total =
+        lines.length * lineH + gap + extraLines.reduce((s, l) => s + l.lineH, 0)
+      let ty = textBottom + total - size
       for (const line of lines) {
         const lw = display.widthOfTextAtSize(line, size)
         page.drawText(line, {
@@ -130,6 +147,18 @@ export async function buildCoverPdf({
           color: INK,
         })
         ty -= lineH
+      }
+      ty -= gap
+      for (const ex of extraLines) {
+        const lw = ex.font.widthOfTextAtSize(ex.text, ex.size)
+        page.drawText(ex.text, {
+          x: frontX + (frontW - lw) / 2,
+          y: ty,
+          size: ex.size,
+          font: ex.font,
+          color: INK,
+        })
+        ty -= ex.lineH
       }
     }
   }

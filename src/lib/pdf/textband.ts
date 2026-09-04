@@ -56,6 +56,14 @@ function scrimPng(
  * over dark art, tinted from the art's own colour), plus a faint per-letter
  * halo. Works for a full page (interior) or a sub-region (the cover front).
  */
+/** An extra line (e.g. an author byline) drawn below the main text, smaller. */
+export interface ExtraLine {
+  text: string
+  size: number
+  lineH: number
+  font: PDFFont
+}
+
 export async function drawAdaptiveTextBand(opts: {
   doc: PDFDocument
   page: PDFPage
@@ -69,8 +77,11 @@ export async function drawAdaptiveTextBand(opts: {
   size: number
   lineH: number
   font: PDFFont
+  /** Optional smaller lines (e.g. "by Jane Doe") drawn beneath the main text. */
+  extraLines?: ExtraLine[]
 }): Promise<void> {
   const { doc, page, x, width, textBottom, band, lines, size, lineH, font } = opts
+  const extraLines = opts.extraLines ?? []
 
   const lum = band?.luminance ?? 0.5
   const br = band?.r ?? 0.5
@@ -86,8 +97,10 @@ export async function drawAdaptiveTextBand(opts: {
   const maxOpacity = lightArt ? 0.85 : 0.8
   const plateauMin = maxOpacity * 0.72
 
-  const textBlockH = lines.length * lineH
-  const textTop = textBottom + textBlockH
+  const extrasH = extraLines.reduce((s, l) => s + l.lineH, 0)
+  const gap = extraLines.length ? Math.max(3, size * 0.2) : 0
+  const totalH = lines.length * lineH + gap + extrasH
+  const textTop = textBottom + totalH
   const feather = size * 2.4
   const scrimTop = textTop + feather
 
@@ -96,31 +109,40 @@ export async function drawAdaptiveTextBand(opts: {
   )
   page.drawImage(img, { x, y: 0, width, height: scrimTop })
 
-  // Faint halo (offset copies) then the crisp text on top.
-  const o = Math.max(0.5, size * 0.04)
-  const offsets: Array<[number, number]> = [
-    [-o, 0],
-    [o, 0],
-    [0, -o],
-    [0, o],
-    [-o, -o],
-    [o, o],
-  ]
-  let ty = textTop - size
-  for (const line of lines) {
-    const lw = font.widthOfTextAtSize(line, size)
+  // Draw one centered line with a faint halo, then the crisp text on top.
+  const drawRow = (text: string, rSize: number, rFont: PDFFont, ty: number) => {
+    const o = Math.max(0.5, rSize * 0.04)
+    const offsets: Array<[number, number]> = [
+      [-o, 0],
+      [o, 0],
+      [0, -o],
+      [0, o],
+      [-o, -o],
+      [o, o],
+    ]
+    const lw = rFont.widthOfTextAtSize(text, rSize)
     const lx = x + (width - lw) / 2
     for (const [dx, dy] of offsets) {
-      page.drawText(line, {
+      page.drawText(text, {
         x: lx + dx,
         y: ty + dy,
-        size,
-        font,
+        size: rSize,
+        font: rFont,
         color: haloColor,
         opacity: 0.45,
       })
     }
-    page.drawText(line, { x: lx, y: ty, size, font, color: textColor })
+    page.drawText(text, { x: lx, y: ty, size: rSize, font: rFont, color: textColor })
+  }
+
+  let ty = textTop - size
+  for (const line of lines) {
+    drawRow(line, size, font, ty)
     ty -= lineH
+  }
+  ty -= gap
+  for (const ex of extraLines) {
+    drawRow(ex.text, ex.size, ex.font, ty)
+    ty -= ex.lineH
   }
 }

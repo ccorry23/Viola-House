@@ -29,6 +29,7 @@ export interface InteriorPageInput {
 
 export interface BuildInteriorInput {
   title: string
+  author?: string
   trimSize: TrimId
   pages: InteriorPageInput[]
 }
@@ -46,6 +47,7 @@ export interface InteriorResult {
 
 export async function buildInteriorPdf({
   title,
+  author,
   trimSize,
   pages,
 }: BuildInteriorInput): Promise<InteriorResult> {
@@ -79,7 +81,7 @@ export async function buildInteriorPdf({
       page.drawText(line, { x: (wPt - w) / 2, y, size, font: display, color: INK })
       y -= size * 1.3
     }
-    const sub = 'A picture book'
+    const sub = author?.trim() ? `by ${author.trim()}` : 'A picture book'
     const subSize = 13
     const subW = body.widthOfTextAtSize(sub, subSize)
     page.drawText(sub, {

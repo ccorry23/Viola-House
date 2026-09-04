@@ -91,6 +91,7 @@ export async function exportBook(
   tick('Putting the book together…')
   const interior = await buildInteriorPdf({
     title: book.title,
+    author: book.author,
     trimSize: book.trimSize,
     pages: interiorPages,
   })
@@ -100,6 +101,8 @@ export async function exportBook(
 
   const cover = await buildCoverPdf({
     title: book.title,
+    author: book.author,
+    showTitle: book.showCoverTitle !== false,
     trimSize: book.trimSize,
     pageCount: interior.pageCount,
     frontPngBytes: frontBytes,

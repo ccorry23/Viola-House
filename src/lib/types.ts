@@ -54,6 +54,13 @@ export interface CastMember {
 export interface Book {
   id: string
   title: string
+  /** Author name, shown on the cover and interior title page. */
+  author?: string
+  /**
+   * Whether to print the app's title + author band on the cover. Off is useful
+   * when the cover art already includes the title. Defaults to on (undefined).
+   */
+  showCoverTitle?: boolean
   status: BookStatus
   trimSize: TrimId
   /** Full manuscript text (the writing surface's source of truth). */

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useLiveQuery } from 'dexie-react-hooks'
 import toast from 'react-hot-toast'
@@ -23,7 +23,14 @@ export function PublishPhase({ book }: { book: Book }) {
   const [result, setResult] = useState<ExportResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<ExportProgress | null>(null)
+  const [authorInput, setAuthorInput] = useState(book.author ?? '')
   const trim = TRIM_SIZES[book.trimSize]
+  const showCoverTitle = book.showCoverTitle !== false
+
+  // Keep the author field in sync if the book changes underneath us.
+  useEffect(() => {
+    setAuthorInput(book.author ?? '')
+  }, [book.id, book.author])
 
   const illustrated = pages.filter((p) => p.imageStatus === 'ready').length
   const stem = fileStem(book.title)
@@ -99,10 +106,39 @@ export function PublishPhase({ book }: { book: Book }) {
           />
         </dl>
 
+        <div className="mt-4 rounded-xl border border-border p-3">
+          <label htmlFor="author" className="block text-xs font-semibold text-muted">
+            Author name
+          </label>
+          <input
+            id="author"
+            value={authorInput}
+            onChange={(e) => setAuthorInput(e.target.value)}
+            onBlur={() => patchBook(book.id, { author: authorInput.trim() })}
+            placeholder="e.g. Jane Doe"
+            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+          <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-semibold">
+            <input
+              type="checkbox"
+              checked={showCoverTitle}
+              onChange={(e) =>
+                patchBook(book.id, { showCoverTitle: e.target.checked })
+              }
+              className="h-4 w-4 accent-[color:var(--accent)]"
+            />
+            <span>Show the title &amp; author on the cover</span>
+          </label>
+          <p className="mt-1 text-xs text-muted">
+            Turn this off if your cover picture already has the title printed on
+            it.
+          </p>
+        </div>
+
         <button
           onClick={runExport}
           disabled={busy}
-          className="mt-5 w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg disabled:opacity-60"
+          className="mt-4 w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg disabled:opacity-60"
         >
           {busy ? 'Building PDFs…' : 'Generate print files'}
         </button>
