@@ -55,9 +55,12 @@ export async function exportBook(
   // The cover front prefers the dedicated cover image (the style anchor the
   // author dialed in first); it falls back to page 1's art if none is set.
   let frontBytes: Uint8Array | null = null
+  let frontBand: InteriorPageInput['band']
   if (hasCoverArt) {
     tick('Preparing the cover…')
-    frontBytes = (await upscaleToPng(book.style.characterSheet!, wPx, hPx)).png
+    const up = await upscaleToPng(book.style.characterSheet!, wPx, hPx)
+    frontBytes = up.png
+    frontBand = up.band
     done++
     tick('Preparing the cover…')
   }
@@ -76,7 +79,10 @@ export async function exportBook(
       missingImages++
     }
     interiorPages.push({ text: p.text, pngBytes: png, band })
-    if (p.index === 0 && png && !frontBytes) frontBytes = png
+    if (p.index === 0 && png && !frontBytes) {
+      frontBytes = png
+      frontBand = band
+    }
     done++
     tick(`Preparing page ${n} of ${sorted.length}…`)
     await yieldToUi()
@@ -97,6 +103,7 @@ export async function exportBook(
     trimSize: book.trimSize,
     pageCount: interior.pageCount,
     frontPngBytes: frontBytes,
+    frontBand,
   })
   done++
   tick('Almost done…')

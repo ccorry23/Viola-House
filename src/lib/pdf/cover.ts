@@ -13,6 +13,8 @@ import {
 } from '@/lib/kdp/constants'
 import { loadPdfFonts } from './fonts'
 import { fitFontSize } from './text'
+import { drawAdaptiveTextBand } from './textband'
+import type { BandStats } from './upscale'
 
 const ACCENT = rgb(0.71, 0.28, 0.42)
 const BACK_BG = rgb(0.96, 0.89, 0.92)
@@ -26,6 +28,8 @@ export interface BuildCoverInput {
   pageCount: number
   /** Front cover art (upscaled PNG), or null for a plain colored cover. */
   frontPngBytes: Uint8Array | null
+  /** Brightness/colour of the cover art where the title sits, for the scrim. */
+  frontBand?: BandStats
 }
 
 /**
@@ -39,6 +43,7 @@ export async function buildCoverPdf({
   trimSize,
   pageCount,
   frontPngBytes,
+  frontBand,
 }: BuildCoverInput): Promise<Uint8Array> {
   const trim = TRIM_SIZES[trimSize]
   const wrap = coverWrapBoxIn(trim, pageCount)
@@ -89,34 +94,43 @@ export async function buildCoverPdf({
     })
   }
 
-  // Front title band (bottom third, inside the front trim safe area).
+  // Front title (bottom of the front cover, inside the trim safe area). Over
+  // art it uses the same soft adaptive scrim as the interior pages; on a plain
+  // colored cover it's just dark ink.
   {
     const safeLeft = frontX + inset
     const safeRight = wPt - bleedPt - inset
     const maxW = safeRight - safeLeft
     const { size, lines } = fitFontSize(title, display, maxW, hPt * 0.3, 34, 16)
-    const lineH = size * 1.25
-    const bandH = lines.length * lineH + 28
-    const bandY = inset + bleedPt
-    page.drawRectangle({
-      x: safeLeft - 8,
-      y: bandY,
-      width: maxW + 16,
-      height: bandH,
-      color: WHITE,
-      opacity: frontPngBytes ? 0.85 : 1,
-    })
-    let ty = bandY + bandH - 16 - size
-    for (const line of lines) {
-      const lw = display.widthOfTextAtSize(line, size)
-      page.drawText(line, {
-        x: frontX + (frontW - lw) / 2,
-        y: ty,
+    const lineH = size * 1.3
+    const textBottom = inset + bleedPt + 6
+
+    if (frontPngBytes) {
+      await drawAdaptiveTextBand({
+        doc,
+        page,
+        x: frontX,
+        width: frontW,
+        textBottom,
+        band: frontBand,
+        lines,
         size,
+        lineH,
         font: display,
-        color: INK,
       })
-      ty -= lineH
+    } else {
+      let ty = textBottom + lines.length * lineH - size
+      for (const line of lines) {
+        const lw = display.widthOfTextAtSize(line, size)
+        page.drawText(line, {
+          x: frontX + (frontW - lw) / 2,
+          y: ty,
+          size,
+          font: display,
+          color: INK,
+        })
+        ty -= lineH
+      }
     }
   }
 
