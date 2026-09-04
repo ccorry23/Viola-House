@@ -19,12 +19,19 @@ export interface ReviewResult {
   feedback: ReviewItem[]
 }
 
+export interface KeywordItem {
+  keyword: string
+  why: string
+}
+
 export interface WriteResult {
   text?: string
   ideas?: Idea[]
   review?: ReviewResult
-  /** For 'subtitle' / 'keywords': the generated list. */
+  /** For 'subtitle': the generated list of options. */
   items?: string[]
+  /** For 'keywords': strategic keyword phrases with a targeting note each. */
+  keywords?: KeywordItem[]
 }
 
 export interface WritePayload {

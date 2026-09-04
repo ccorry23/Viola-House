@@ -130,14 +130,24 @@ export function buildWritePrompt(req: WriteRequest): string {
       )
     case 'keywords':
       return (
-        'Suggest 7 search keyword phrases a parent or grandparent might type ' +
-        'on Amazon to find this children\'s picture book (for KDP\'s 7 keyword ' +
-        'slots). Each phrase is 2–5 words, lowercase, no punctuation, and ' +
-        'relevant to the story\'s theme, characters, feelings, and audience ' +
-        '(e.g. "learning to lose", "good sportsmanship for kids", "board game ' +
-        'picture book"). Vary them; avoid repeating the exact title. Base them ' +
-        'only on the manuscript. Return ONLY a JSON array of 7 strings, no ' +
-        'prose outside the JSON.\n\n' +
+        'You are optimizing Amazon KDP keywords so this children\'s picture ' +
+        'book gets found and sells. KDP gives 7 keyword slots, each up to 50 ' +
+        'characters. Apply proven KDP keyword strategy:\n' +
+        '- Use buyer-intent phrases real shoppers actually type — NOT the ' +
+        'book\'s title or author (those are already searchable).\n' +
+        '- Make them specific and long-tail (3–6 words), each 50 characters or ' +
+        'fewer, lowercase, no punctuation.\n' +
+        '- Spread across DIFFERENT angles so the book appears in more searches. ' +
+        'Across the 7, cover a mix of: the story\'s theme/lesson; the target ' +
+        'age; a gift or occasion angle (e.g. "gift for a 4 year old"); a ' +
+        'reading-context angle (e.g. "bedtime story", "read aloud"); an ' +
+        'emotional-benefit angle for the parent; and a comparable-genre angle ' +
+        '(e.g. "picture books about feelings").\n' +
+        '- Phrase them the natural way a parent or grandparent would search.\n' +
+        'Base everything only on the manuscript. Return ONLY a JSON array of 7 ' +
+        'objects, each {"keyword": the phrase (<=50 chars), "why": a 3–8 word ' +
+        'note naming the shopper or search it targets}. No prose outside the ' +
+        'JSON.\n\n' +
         `Manuscript:\n"""\n${req.manuscript ?? ''}\n"""`
       )
     case 'review':

@@ -29,6 +29,11 @@ export interface Idea {
   ageRange: string
 }
 
+interface KeywordItem {
+  keyword: string
+  why: string
+}
+
 interface ReviewItem {
   area: string
   observation: string
@@ -92,7 +97,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ideas })
     }
 
-    if (body.mode === 'subtitle' || body.mode === 'keywords') {
+    if (body.mode === 'subtitle') {
       let items: string[] = []
       try {
         const parsed = JSON.parse(raw)
@@ -110,6 +115,33 @@ export async function POST(req: NextRequest) {
           .filter(Boolean)
       }
       return NextResponse.json({ items })
+    }
+
+    if (body.mode === 'keywords') {
+      const clean = (s: string) => s.trim().slice(0, 50)
+      let keywords: KeywordItem[] = []
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          keywords = parsed
+            .map((k: unknown) => {
+              if (k && typeof (k as KeywordItem).keyword === 'string') {
+                const it = k as KeywordItem
+                return { keyword: clean(it.keyword), why: (it.why ?? '').trim() }
+              }
+              if (typeof k === 'string') return { keyword: clean(k), why: '' }
+              return null
+            })
+            .filter((k): k is KeywordItem => !!k && !!k.keyword)
+        }
+      } catch {
+        keywords = raw
+          .split('\n')
+          .map((l) => l.replace(/^[-*\d.\s"]+|["\s]+$/g, '').trim())
+          .filter(Boolean)
+          .map((k) => ({ keyword: clean(k), why: '' }))
+      }
+      return NextResponse.json({ keywords })
     }
 
     if (body.mode === 'review') {

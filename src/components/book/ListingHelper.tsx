@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { callWrite, checkWritingAvailability, WriteError } from '@/lib/ai/writeClient'
+import {
+  callWrite,
+  checkWritingAvailability,
+  WriteError,
+  type KeywordItem,
+} from '@/lib/ai/writeClient'
 import { useOnline } from '@/lib/hooks/useOnline'
 import type { Book } from '@/lib/types'
 
@@ -19,7 +24,7 @@ export function ListingHelper({ book }: { book: Book }) {
   const [loading, setLoading] = useState<Tool | null>(null)
   const [description, setDescription] = useState<string | null>(null)
   const [subtitles, setSubtitles] = useState<string[] | null>(null)
-  const [keywords, setKeywords] = useState<string[] | null>(null)
+  const [keywords, setKeywords] = useState<KeywordItem[] | null>(null)
 
   useEffect(() => {
     checkWritingAvailability().then(setAvailable)
@@ -40,9 +45,11 @@ export function ListingHelper({ book }: { book: Book }) {
       if (tool === 'description') {
         if (res.text) setDescription(res.text.trim())
         else toast('Nothing came back — try again.')
+      } else if (tool === 'subtitle') {
+        if (res.items?.length) setSubtitles(res.items)
+        else toast('Nothing came back — try again.')
       } else {
-        const items = res.items ?? []
-        if (items.length) (tool === 'subtitle' ? setSubtitles : setKeywords)(items)
+        if (res.keywords?.length) setKeywords(res.keywords)
         else toast('Nothing came back — try again.')
       }
     } catch (e) {
@@ -156,7 +163,8 @@ export function ListingHelper({ book }: { book: Book }) {
           <div>
             <h3 className="font-display text-base font-semibold">Keywords</h3>
             <p className="text-xs text-muted">
-              KDP gives you 7 keyword boxes — copy one into each.
+              KDP gives you 7 boxes (50 characters each) — copy one into each.
+              Chosen to reach different Amazon searches.
             </p>
           </div>
           {genBtn('keywords', Boolean(keywords), 'Suggest')}
@@ -167,14 +175,19 @@ export function ListingHelper({ book }: { book: Book }) {
               {keywords.map((k, i) => (
                 <li
                   key={i}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2"
+                  className="flex items-start justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2"
                 >
-                  <span className="text-sm">
-                    <span className="mr-2 text-muted">{i + 1}.</span>
-                    {k}
-                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm">
+                      <span className="mr-2 text-muted">{i + 1}.</span>
+                      {k.keyword}
+                    </p>
+                    {k.why && (
+                      <p className="mt-0.5 text-xs text-muted">→ {k.why}</p>
+                    )}
+                  </div>
                   <button
-                    onClick={() => copy(k, 'Keyword copied')}
+                    onClick={() => copy(k.keyword, 'Keyword copied')}
                     className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-semibold hover:bg-surface-2"
                   >
                     Copy
@@ -183,7 +196,9 @@ export function ListingHelper({ book }: { book: Book }) {
               ))}
             </ol>
             <button
-              onClick={() => copy(keywords.join('\n'), 'All keywords copied')}
+              onClick={() =>
+                copy(keywords.map((k) => k.keyword).join('\n'), 'All keywords copied')
+              }
               className="mt-2 rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"
             >
               Copy all
