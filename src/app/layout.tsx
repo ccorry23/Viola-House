@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { TopBar } from "@/components/TopBar";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { SyncProvider } from "@/components/SyncProvider";
+import { VersionWatcher } from "@/components/VersionWatcher";
 import "./globals.css";
 
 const body = Nunito({
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <ServiceWorkerRegister />
         <SyncProvider />
+        <VersionWatcher />
         <TopBar />
         {children}
         <Toaster
