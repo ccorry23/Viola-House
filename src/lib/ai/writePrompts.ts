@@ -22,12 +22,24 @@ export const REVIEWER_SYSTEM =
   'invent a different story — you help the author strengthen exactly what they ' +
   'wrote. Keep suggestions kind, concrete, and easy for a non-expert to act on.'
 
+export const MARKETER_SYSTEM =
+  'You are an expert children\'s-book marketing copywriter. You write warm, ' +
+  'vivid, honest Amazon product descriptions that make parents and ' +
+  'grandparents want to buy a picture book for a young child. You capture the ' +
+  'story\'s heart and the gentle lesson it teaches, without giving away the ' +
+  'ending. You never invent characters, events, or facts that are not in the ' +
+  'manuscript. Keep it concise (about 120–180 words) in short, inviting ' +
+  'sentences, and finish with one line about the age range and who the book is ' +
+  'perfect for. Return ONLY the description text — no title, no headings, no ' +
+  'markdown symbols, no surrounding quotation marks.'
+
 export type WriteMode =
   | 'brainstorm'
   | 'draft'
   | 'continue'
   | 'rewrite'
   | 'review'
+  | 'description'
 
 export interface WriteRequest {
   mode: WriteMode
@@ -35,15 +47,19 @@ export interface WriteRequest {
   premise?: string
   manuscript?: string
   instruction?: string
+  title?: string
+  author?: string
 }
 
 export function isJsonMode(mode: WriteMode): boolean {
   return mode === 'brainstorm' || mode === 'review'
 }
 
-/** Which persona to run a mode under. Review uses the editor, not the writer. */
+/** Which persona to run a mode under. */
 export function systemFor(mode: WriteMode): string {
-  return mode === 'review' ? REVIEWER_SYSTEM : WRITER_SYSTEM
+  if (mode === 'review') return REVIEWER_SYSTEM
+  if (mode === 'description') return MARKETER_SYSTEM
+  return WRITER_SYSTEM
 }
 
 export function buildWritePrompt(req: WriteRequest): string {
@@ -79,6 +95,19 @@ export function buildWritePrompt(req: WriteRequest): string {
           : ' to read more smoothly while keeping its meaning.') +
         ' Keep the same overall plot. Return only the rewritten story.\n\n' +
         `Story:\n"""\n${req.manuscript ?? ''}\n"""`
+      )
+    case 'description':
+      return (
+        'Write an Amazon product description for this children\'s picture book ' +
+        'to help it sell.' +
+        (req.title?.trim() ? ` Title: "${req.title.trim()}".` : '') +
+        (req.author?.trim() ? ` Author: ${req.author.trim()}.` : '') +
+        ' Base it only on the manuscript below — capture its story, ' +
+        'characters, tone, and the gentle lesson, and entice the reader ' +
+        'without giving away the ending. Finish with one line naming a ' +
+        'sensible age range for the reading level and who it is perfect for. ' +
+        'Return only the description text.\n\n' +
+        `Manuscript:\n"""\n${req.manuscript ?? ''}\n"""`
       )
     case 'review':
       return (

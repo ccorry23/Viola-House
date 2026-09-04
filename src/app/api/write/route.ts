@@ -18,6 +18,7 @@ const MODES: WriteMode[] = [
   'continue',
   'rewrite',
   'review',
+  'description',
 ]
 
 export interface Idea {
@@ -49,7 +50,8 @@ export async function POST(req: NextRequest) {
   if (
     (body.mode === 'continue' ||
       body.mode === 'rewrite' ||
-      body.mode === 'review') &&
+      body.mode === 'review' ||
+      body.mode === 'description') &&
     !body.manuscript?.trim()
   ) {
     return NextResponse.json(
@@ -57,7 +59,9 @@ export async function POST(req: NextRequest) {
         error:
           body.mode === 'review'
             ? 'Add the manuscript you want reviewed first.'
-            : 'Write some of the story first.',
+            : body.mode === 'description'
+              ? 'Write your story first, then I can describe it.'
+              : 'Write some of the story first.',
       },
       { status: 400 }
     )

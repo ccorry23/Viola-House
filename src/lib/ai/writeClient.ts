@@ -31,6 +31,8 @@ export interface WritePayload {
   premise?: string
   manuscript?: string
   instruction?: string
+  title?: string
+  author?: string
 }
 
 export class WriteError extends Error {
