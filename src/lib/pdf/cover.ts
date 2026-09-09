@@ -13,7 +13,7 @@ import {
 } from '@/lib/kdp/constants'
 import { loadPdfFonts } from './fonts'
 import { fitFontSize } from './text'
-import { drawAdaptiveTextBand } from './textband'
+import { drawAdaptiveTextBand, type ExtraLine } from './textband'
 import type { BandStats } from './upscale'
 
 const ACCENT = rgb(0.71, 0.28, 0.42)
@@ -25,8 +25,10 @@ export interface BuildCoverInput {
   title: string
   /** Author name for the byline (blank to omit). */
   author?: string
-  /** Whether to print the title + author band on the front cover. */
+  /** Whether to print the title on the front cover. */
   showTitle?: boolean
+  /** Whether to print the author byline on the front cover. */
+  showAuthor?: boolean
   trimSize: TrimId
   /** Interior page count — drives spine width. */
   pageCount: number
@@ -46,6 +48,7 @@ export async function buildCoverPdf({
   title,
   author,
   showTitle = true,
+  showAuthor = true,
   trimSize,
   pageCount,
   frontPngBytes,
@@ -100,23 +103,44 @@ export async function buildCoverPdf({
     })
   }
 
-  // Front title + author (bottom of the front cover, inside the trim safe
-  // area). Optional — skipped when the author turns it off (e.g. the art
-  // already has the title). Over art it uses the same soft adaptive scrim as
-  // the interior pages; on a plain colored cover it's just dark ink.
-  if (showTitle) {
+  // Front title and/or author (bottom of the front cover, inside the trim safe
+  // area). Each is independently optional — turning one off is useful when the
+  // cover art already has that text printed on it. Over art it uses the same
+  // soft adaptive scrim as the interior pages; on a plain colored cover it's
+  // just dark ink.
+  const byline = author?.trim() ? `by ${author.trim()}` : ''
+  const wantTitle = showTitle
+  const wantAuthor = showAuthor && Boolean(byline)
+  if (wantTitle || wantAuthor) {
     const safeLeft = frontX + inset
     const safeRight = wPt - bleedPt - inset
     const maxW = safeRight - safeLeft
-    const { size, lines } = fitFontSize(title, display, maxW, hPt * 0.28, 34, 16)
-    const lineH = size * 1.3
     const textBottom = inset + bleedPt + 6
 
-    const byline = author?.trim() ? `by ${author.trim()}` : ''
-    const authorSize = Math.max(11, Math.round(size * 0.42))
-    const extraLines = byline
-      ? [{ text: byline, size: authorSize, lineH: authorSize * 1.3, font: body }]
-      : []
+    // The title is the main (largest) text; the byline is a smaller line under
+    // it. With the title hidden, the byline becomes the main line instead.
+    let mainLines: string[]
+    let mainSize: number
+    let mainFont = display
+    let extraLines: ExtraLine[] = []
+
+    if (wantTitle) {
+      const fit = fitFontSize(title, display, maxW, hPt * 0.28, 34, 16)
+      mainLines = fit.lines
+      mainSize = fit.size
+      if (wantAuthor) {
+        const authorSize = Math.max(11, Math.round(mainSize * 0.42))
+        extraLines = [
+          { text: byline, size: authorSize, lineH: authorSize * 1.3, font: body },
+        ]
+      }
+    } else {
+      const fit = fitFontSize(byline, body, maxW, hPt * 0.12, 22, 13)
+      mainLines = fit.lines
+      mainSize = fit.size
+      mainFont = body
+    }
+    const lineH = mainSize * 1.3
 
     if (frontPngBytes) {
       await drawAdaptiveTextBand({
@@ -126,24 +150,26 @@ export async function buildCoverPdf({
         width: frontW,
         textBottom,
         band: frontBand,
-        lines,
-        size,
+        lines: mainLines,
+        size: mainSize,
         lineH,
-        font: display,
+        font: mainFont,
         extraLines,
       })
     } else {
-      const gap = byline ? Math.max(3, size * 0.2) : 0
+      const gap = extraLines.length ? Math.max(3, mainSize * 0.2) : 0
       const total =
-        lines.length * lineH + gap + extraLines.reduce((s, l) => s + l.lineH, 0)
-      let ty = textBottom + total - size
-      for (const line of lines) {
-        const lw = display.widthOfTextAtSize(line, size)
+        mainLines.length * lineH +
+        gap +
+        extraLines.reduce((s, l) => s + l.lineH, 0)
+      let ty = textBottom + total - mainSize
+      for (const line of mainLines) {
+        const lw = mainFont.widthOfTextAtSize(line, mainSize)
         page.drawText(line, {
           x: frontX + (frontW - lw) / 2,
           y: ty,
-          size,
-          font: display,
+          size: mainSize,
+          font: mainFont,
           color: INK,
         })
         ty -= lineH

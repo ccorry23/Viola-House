@@ -27,6 +27,7 @@ export function PublishPhase({ book }: { book: Book }) {
   const [authorInput, setAuthorInput] = useState(book.author ?? '')
   const trim = TRIM_SIZES[book.trimSize]
   const showCoverTitle = book.showCoverTitle !== false
+  const showCoverAuthor = book.showCoverAuthor !== false
 
   // Keep the author field in sync if the book changes underneath us.
   useEffect(() => {
@@ -128,10 +129,21 @@ export function PublishPhase({ book }: { book: Book }) {
               }
               className="h-4 w-4 accent-[color:var(--accent)]"
             />
-            <span>Show the title &amp; author on the cover</span>
+            <span>Show the title on the cover</span>
+          </label>
+          <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm font-semibold">
+            <input
+              type="checkbox"
+              checked={showCoverAuthor}
+              onChange={(e) =>
+                patchBook(book.id, { showCoverAuthor: e.target.checked })
+              }
+              className="h-4 w-4 accent-[color:var(--accent)]"
+            />
+            <span>Show the author on the cover</span>
           </label>
           <p className="mt-1 text-xs text-muted">
-            Turn this off if your cover picture already has the title printed on
+            Turn one off if your cover picture already has that text printed on
             it.
           </p>
         </div>

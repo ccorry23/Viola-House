@@ -103,6 +103,7 @@ export async function exportBook(
     title: book.title,
     author: book.author,
     showTitle: book.showCoverTitle !== false,
+    showAuthor: book.showCoverAuthor !== false,
     trimSize: book.trimSize,
     pageCount: interior.pageCount,
     frontPngBytes: frontBytes,

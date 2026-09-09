@@ -57,10 +57,15 @@ export interface Book {
   /** Author name, shown on the cover and interior title page. */
   author?: string
   /**
-   * Whether to print the app's title + author band on the cover. Off is useful
-   * when the cover art already includes the title. Defaults to on (undefined).
+   * Whether to print the title on the cover. Off is useful when the cover art
+   * already includes the title. Defaults to on (undefined).
    */
   showCoverTitle?: boolean
+  /**
+   * Whether to print the author byline on the cover. Off is useful when the
+   * art already has it. Defaults to on (undefined).
+   */
+  showCoverAuthor?: boolean
   status: BookStatus
   trimSize: TrimId
   /** Full manuscript text (the writing surface's source of truth). */
