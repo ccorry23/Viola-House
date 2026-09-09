@@ -76,7 +76,11 @@ export async function upscaleToPng(
   const canvas = document.createElement('canvas')
   canvas.width = wPx
   canvas.height = hPx
-  const ctx = canvas.getContext('2d')!
+  // alpha: false guarantees an opaque canvas — the exported PNG carries no
+  // alpha channel at all, so pdf-lib never attaches an SMask to it. Some
+  // source art (Gemini output, uploads) may itself have an alpha channel even
+  // when every pixel is opaque; compositing onto an opaque canvas strips it.
+  const ctx = canvas.getContext('2d', { alpha: false })!
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
 
@@ -105,7 +109,7 @@ export async function solidPng(
   const canvas = document.createElement('canvas')
   canvas.width = wPx
   canvas.height = hPx
-  const ctx = canvas.getContext('2d')!
+  const ctx = canvas.getContext('2d', { alpha: false })!
   ctx.fillStyle = color
   ctx.fillRect(0, 0, wPx, hPx)
   const out = await new Promise<Blob | null>((res) =>

@@ -172,6 +172,11 @@ export async function buildInteriorPdf({
     total++
   }
 
-  const bytes = await doc.save()
+  // useObjectStreams: false writes a classic (uncompressed) cross-reference
+  // table instead of pdf-lib's default compressed object streams. It's a
+  // larger file but far more broadly compatible with third-party PDF
+  // ingestion/validation tools — including print-on-demand processors like
+  // KDP's, which have been reported to reject object-stream PDFs outright.
+  const bytes = await doc.save({ useObjectStreams: false })
   return { bytes, pageCount: total }
 }

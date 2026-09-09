@@ -203,5 +203,7 @@ export async function buildCoverPdf({
     })
   }
 
-  return doc.save()
+  // See interior.ts for why: classic xref table, not compressed object
+  // streams — broader compatibility with print-on-demand PDF processors.
+  return doc.save({ useObjectStreams: false })
 }
