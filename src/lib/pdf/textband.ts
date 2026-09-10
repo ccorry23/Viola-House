@@ -1,77 +1,14 @@
 'use client'
 
-import { rgb, type PDFDocument, type PDFPage, type PDFFont } from 'pdf-lib'
+import { rgb, type PDFPage, type PDFFont } from 'pdf-lib'
 import type { BandStats } from './upscale'
+
+type Color = ReturnType<typeof rgb>
 
 const INK = rgb(0.17, 0.13, 0.09)
 const WHITE = rgb(1, 1, 1)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
-function dataUrlToBytes(url: string): Uint8Array {
-  const b64 = url.split(',')[1] ?? ''
-  const bin = atob(b64)
-  const arr = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
-  return arr
-}
-
-/**
- * A single smooth vertical gradient as a fully OPAQUE PNG — no alpha channel,
- * no PDF-level transparency. Print pipelines (KDP's cover/interior processor
- * included) are considerably more reliable with flattened, opaque PDFs, so
- * instead of true alpha-compositing the scrim color over the art, we
- * pre-blend it: the gradient runs from the art's own average colour (`bg`,
- * i.e. visually "no scrim yet") up top, to the full scrim colour by the
- * plateau behind the text. Since every pixel is fully opaque, embedding this
- * image never introduces a soft mask.
- */
-function scrimPng(
-  scrim: { r: number; g: number; b: number },
-  bg: { r: number; g: number; b: number },
-  maxBlend: number,
-  plateauBlend: number,
-  textTop: number,
-  scrimTop: number
-): Uint8Array {
-  const w = 2
-  const h = 512
-  const c = document.createElement('canvas')
-  c.width = w
-  c.height = h
-  const ctx = c.getContext('2d', { alpha: false })!
-  const bgCol = `${Math.round(bg.r * 255)},${Math.round(bg.g * 255)},${Math.round(bg.b * 255)}`
-  const mid = {
-    r: lerp(bg.r, scrim.r, plateauBlend),
-    g: lerp(bg.g, scrim.g, plateauBlend),
-    b: lerp(bg.b, scrim.b, plateauBlend),
-  }
-  const midCol = `${Math.round(mid.r * 255)},${Math.round(mid.g * 255)},${Math.round(mid.b * 255)}`
-  const full = {
-    r: lerp(bg.r, scrim.r, maxBlend),
-    g: lerp(bg.g, scrim.g, maxBlend),
-    b: lerp(bg.b, scrim.b, maxBlend),
-  }
-  const fullCol = `${Math.round(full.r * 255)},${Math.round(full.g * 255)},${Math.round(full.b * 255)}`
-  // Canvas top (offset 0) maps to the PDF box top (scrimTop); canvas bottom
-  // (offset 1) maps to the page bottom, where the scrim is strongest.
-  const midStop = Math.max(0, Math.min(1, 1 - textTop / scrimTop))
-  const g = ctx.createLinearGradient(0, 0, 0, h)
-  g.addColorStop(0, `rgb(${bgCol})`)
-  g.addColorStop(midStop, `rgb(${midCol})`)
-  g.addColorStop(1, `rgb(${fullCol})`)
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, w, h)
-  return dataUrlToBytes(c.toDataURL('image/png'))
-}
-
-/**
- * Draw text over full-bleed art so it reads on any book's colours without a
- * pasted-on box: a soft, seamless gradient scrim rising from the bottom edge of
- * the region and feathering to nothing above the text, adapted to the art
- * beneath (light scrim + dark text over bright art; dark scrim + light text
- * over dark art, tinted from the art's own colour), plus a faint per-letter
- * halo. Works for a full page (interior) or a sub-region (the cover front).
- */
 /** An extra line (e.g. an author byline) drawn below the main text, smaller. */
 export interface ExtraLine {
   text: string
@@ -80,25 +17,34 @@ export interface ExtraLine {
   font: PDFFont
 }
 
-export async function drawAdaptiveTextBand(opts: {
-  doc: PDFDocument
-  page: PDFPage
-  /** Left edge and width of the region the scrim + text span. */
-  x: number
-  width: number
-  /** PDF y where the bottom line of text sits (inside the safe margin). */
-  textBottom: number
-  band: BandStats | undefined
-  lines: string[]
-  size: number
-  lineH: number
-  font: PDFFont
-  /** Optional smaller lines (e.g. "by Jane Doe") drawn beneath the main text. */
-  extraLines?: ExtraLine[]
-}): Promise<void> {
-  const { doc, page, x, width, textBottom, band, lines, size, lineH, font } = opts
-  const extraLines = opts.extraLines ?? []
+export interface BandStyle {
+  textColor: Color
+  haloColor: Color
+  /** Scrim colour (0..1), tinted from the art. */
+  scrim: { r: number; g: number; b: number }
+  /** Blend fractions toward the scrim colour at the bottom / behind the text. */
+  maxBlend: number
+  plateauBlend: number
+  /** PDF y (from page bottom) of the top of the text block and of the scrim. */
+  textTop: number
+  scrimTop: number
+  /** Extra spacing between the main lines and any extra (byline) lines. */
+  gap: number
+}
 
+/**
+ * Adaptive colours + geometry for the text band, chosen from the art beneath:
+ * light scrim + dark text over bright art, dark scrim + light text over dark
+ * art, tinted from the art's own colour. Pure — no drawing.
+ */
+export function computeBandStyle(
+  band: BandStats | undefined,
+  textBottom: number,
+  lineCount: number,
+  size: number,
+  lineH: number,
+  extraLines: ExtraLine[] = []
+): BandStyle {
   const lum = band?.luminance ?? 0.5
   const br = band?.r ?? 0.5
   const bg = band?.g ?? 0.5
@@ -110,27 +56,77 @@ export async function drawAdaptiveTextBand(opts: {
     : { r: br * 0.14, g: bg * 0.14, b: bb * 0.14 }
   const textColor = lightArt ? INK : WHITE
   const haloColor = lightArt ? WHITE : rgb(0.05, 0.04, 0.03)
-  // Blend fractions toward the scrim colour (0 = art's own colour, 1 = full
-  // scrim) — not alpha; the gradient PNG is fully opaque (see scrimPng).
-  const maxOpacity = lightArt ? 0.85 : 0.8
-  const plateauMin = maxOpacity * 0.72
+  const maxBlend = lightArt ? 0.85 : 0.8
+  const plateauBlend = maxBlend * 0.72
 
   const extrasH = extraLines.reduce((s, l) => s + l.lineH, 0)
   const gap = extraLines.length ? Math.max(3, size * 0.2) : 0
-  const totalH = lines.length * lineH + gap + extrasH
+  const totalH = lineCount * lineH + gap + extrasH
   const textTop = textBottom + totalH
   const feather = size * 2.4
   const scrimTop = textTop + feather
 
-  const img = await doc.embedPng(
-    scrimPng(scrim, { r: br, g: bg, b: bb }, maxOpacity, plateauMin, textTop, scrimTop)
-  )
-  page.drawImage(img, { x, y: 0, width, height: scrimTop })
+  return { textColor, haloColor, scrim, maxBlend, plateauBlend, textTop, scrimTop, gap }
+}
 
-  // Draw one centered line with a solid halo (opaque — no PDF transparency),
-  // then the crisp text on top. The halo sits fully inside the plateau, which
-  // is already near-solid scrim colour, so a solid halo reads the same as a
-  // faint one while keeping the whole file flat/opaque for print processors.
+/**
+ * Composite the soft gradient scrim directly INTO the art's pixels and return a
+ * fully OPAQUE JPEG. Because the gradient is alpha-composited onto the real
+ * picture on a canvas, it fades seamlessly into the art above the text with no
+ * visible top edge — then the JPEG output flattens it to opaque pixels, so the
+ * PDF carries no transparency at all (safe for print processors like KDP).
+ * `regionHeightPt` is the PDF height the art image spans (a full page, or the
+ * full cover height for the front-cover art).
+ */
+export async function bakeScrim(
+  artJpg: Uint8Array,
+  regionHeightPt: number,
+  style: BandStyle
+): Promise<Uint8Array> {
+  const bmp = await createImageBitmap(new Blob([artJpg as BlobPart], { type: 'image/jpeg' }))
+  const c = document.createElement('canvas')
+  c.width = bmp.width
+  c.height = bmp.height
+  const ctx = c.getContext('2d', { alpha: false })!
+  ctx.drawImage(bmp, 0, 0)
+  bmp.close?.()
+
+  // PDF y grows up from the page bottom; canvas y grows down from the top.
+  const scale = c.height / regionHeightPt
+  const scrimTopY = Math.max(0, c.height - style.scrimTop * scale)
+  const textTopY = c.height - style.textTop * scale
+  const { r, g, b } = style.scrim
+  const col = `${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)}`
+
+  const grad = ctx.createLinearGradient(0, scrimTopY, 0, c.height)
+  grad.addColorStop(0, `rgba(${col},0)`)
+  const midStop = Math.max(0, Math.min(1, (textTopY - scrimTopY) / (c.height - scrimTopY)))
+  grad.addColorStop(midStop, `rgba(${col},${style.plateauBlend})`)
+  grad.addColorStop(1, `rgba(${col},${style.maxBlend})`)
+  ctx.fillStyle = grad
+  ctx.fillRect(0, scrimTopY, c.width, c.height - scrimTopY)
+
+  const out = await new Promise<Blob | null>((res) => c.toBlob(res, 'image/jpeg', 0.9))
+  if (!out) throw new Error('Scrim composite failed')
+  return new Uint8Array(await out.arrayBuffer())
+}
+
+/** Draw the band's text (+ a solid halo) as crisp vector text on the PDF. */
+export function drawBandText(opts: {
+  page: PDFPage
+  x: number
+  width: number
+  lines: string[]
+  size: number
+  lineH: number
+  font: PDFFont
+  extraLines?: ExtraLine[]
+  style: BandStyle
+}) {
+  const { page, x, width, lines, size, lineH, font, style } = opts
+  const extraLines = opts.extraLines ?? []
+  const { textColor, haloColor, textTop, gap } = style
+
   const drawRow = (text: string, rSize: number, rFont: PDFFont, ty: number) => {
     const o = Math.max(0.5, rSize * 0.04)
     const offsets: Array<[number, number]> = [

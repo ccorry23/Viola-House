@@ -13,7 +13,13 @@ import {
 } from '@/lib/kdp/constants'
 import { loadPdfFonts } from './fonts'
 import { fitFontSize } from './text'
-import { drawAdaptiveTextBand, type ExtraLine } from './textband'
+import {
+  computeBandStyle,
+  bakeScrim,
+  drawBandText,
+  type ExtraLine,
+  type BandStyle,
+} from './textband'
 import type { BandStats } from './upscale'
 
 const ACCENT = rgb(0.71, 0.28, 0.42)
@@ -80,37 +86,24 @@ export async function buildCoverPdf({
   // Back cover background.
   page.drawRectangle({ x: 0, y: 0, width: backW, height: hPt, color: BACK_BG })
 
-  // Front cover art (or colored fallback).
-  if (frontImageBytes) {
-    const img = await doc.embedJpg(frontImageBytes)
-    page.drawImage(img, { x: frontX, y: 0, width: frontW, height: hPt })
-  } else {
-    page.drawRectangle({ x: frontX, y: 0, width: frontW, height: hPt, color: BACK_BG })
-  }
-
-  // Spine.
-  page.drawRectangle({ x: spineX, y: 0, width: spinePt, height: hPt, color: ACCENT })
-  if (pageCount >= 100 && spinePt > 12) {
-    const spineFont = 12
-    const tw = display.widthOfTextAtSize(title, spineFont)
-    page.drawText(title, {
-      x: spineX + spinePt / 2 + spineFont / 2 - 2,
-      y: (hPt - tw) / 2,
-      size: spineFont,
-      font: display,
-      color: WHITE,
-      rotate: degrees(90),
-    })
-  }
-
   // Front title and/or author (bottom of the front cover, inside the trim safe
   // area). Each is independently optional — turning one off is useful when the
-  // cover art already has that text printed on it. Over art it uses the same
-  // soft adaptive scrim as the interior pages; on a plain colored cover it's
-  // just dark ink.
+  // cover art already has that text printed on it. Computed BEFORE the front
+  // art is drawn so its soft fade can be baked into the art (seamless), just
+  // like the interior pages. On a plain colored cover it's plain dark ink.
   const byline = author?.trim() ? `by ${author.trim()}` : ''
   const wantTitle = showTitle
   const wantAuthor = showAuthor && Boolean(byline)
+  let titlePlan: {
+    mainLines: string[]
+    mainSize: number
+    mainFont: typeof display
+    lineH: number
+    extraLines: ExtraLine[]
+    textBottom: number
+    style?: BandStyle
+  } | null = null
+
   if (wantTitle || wantAuthor) {
     const safeLeft = frontX + inset
     const safeRight = wPt - bleedPt - inset
@@ -141,22 +134,65 @@ export async function buildCoverPdf({
       mainFont = body
     }
     const lineH = mainSize * 1.3
-
+    titlePlan = { mainLines, mainSize, mainFont, lineH, extraLines, textBottom }
     if (frontImageBytes) {
-      await drawAdaptiveTextBand({
-        doc,
+      titlePlan.style = computeBandStyle(
+        frontBand,
+        textBottom,
+        mainLines.length,
+        mainSize,
+        lineH,
+        extraLines
+      )
+    }
+  }
+
+  // Front cover art — with the title band's soft fade baked in (seamless,
+  // opaque) when there's art + a title band.
+  let frontToDraw = frontImageBytes
+  if (frontImageBytes && titlePlan?.style) {
+    frontToDraw = await bakeScrim(frontImageBytes, hPt, titlePlan.style)
+  }
+  if (frontToDraw) {
+    const img = await doc.embedJpg(frontToDraw)
+    page.drawImage(img, { x: frontX, y: 0, width: frontW, height: hPt })
+  } else {
+    page.drawRectangle({ x: frontX, y: 0, width: frontW, height: hPt, color: BACK_BG })
+  }
+
+  // Spine.
+  page.drawRectangle({ x: spineX, y: 0, width: spinePt, height: hPt, color: ACCENT })
+  if (pageCount >= 100 && spinePt > 12) {
+    const spineFont = 12
+    const tw = display.widthOfTextAtSize(title, spineFont)
+    page.drawText(title, {
+      x: spineX + spinePt / 2 + spineFont / 2 - 2,
+      y: (hPt - tw) / 2,
+      size: spineFont,
+      font: display,
+      color: WHITE,
+      rotate: degrees(90),
+    })
+  }
+
+  // Front title/author text, drawn on top of the (composited) front art.
+  if (titlePlan) {
+    if (titlePlan.style) {
+      drawBandText({
         page,
         x: frontX,
         width: frontW,
-        textBottom,
-        band: frontBand,
-        lines: mainLines,
-        size: mainSize,
-        lineH,
-        font: mainFont,
-        extraLines,
+        lines: titlePlan.mainLines,
+        size: titlePlan.mainSize,
+        lineH: titlePlan.lineH,
+        font: titlePlan.mainFont,
+        extraLines: titlePlan.extraLines,
+        style: titlePlan.style,
       })
     } else {
+      // Plain colored cover (no art): dark ink title + byline.
+      const { mainLines, mainSize, mainFont, lineH, extraLines, textBottom } =
+        titlePlan
       const gap = extraLines.length ? Math.max(3, mainSize * 0.2) : 0
       const total =
         mainLines.length * lineH +

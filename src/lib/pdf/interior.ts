@@ -13,7 +13,7 @@ import {
 } from '@/lib/kdp/constants'
 import { loadPdfFonts } from './fonts'
 import { fitFontSize } from './text'
-import { drawAdaptiveTextBand } from './textband'
+import { computeBandStyle, bakeScrim, drawBandText } from './textband'
 import type { BandStats } from './upscale'
 
 const INK = rgb(0.17, 0.13, 0.09)
@@ -115,51 +115,56 @@ export async function buildInteriorPdf({
   // --- Story pages ---
   for (const p of pages) {
     const page = doc.addPage([wPt, hPt])
-    if (p.imageBytes) {
+    const text = p.text.trim()
+    const layout = text
+      ? (() => {
+          const pad = 14
+          const maxTextW = wPt - inset * 2 - pad * 2
+          const { size, lines } = fitFontSize(text, body, maxTextW, hPt * 0.25, 20, 12)
+          return { size, lines, lineH: size * 1.35, textBottom: inset + pad }
+        })()
+      : null
+
+    if (p.imageBytes && layout) {
+      // Bake the soft fade into the art (seamless, opaque), then text on top.
+      const style = computeBandStyle(
+        p.band,
+        layout.textBottom,
+        layout.lines.length,
+        layout.size,
+        layout.lineH
+      )
+      const composited = await bakeScrim(p.imageBytes, hPt, style)
+      const img = await doc.embedJpg(composited)
+      page.drawImage(img, { x: 0, y: 0, width: wPt, height: hPt })
+      drawBandText({
+        page,
+        x: 0,
+        width: wPt,
+        lines: layout.lines,
+        size: layout.size,
+        lineH: layout.lineH,
+        font: body,
+        style,
+      })
+    } else if (p.imageBytes) {
       const img = await doc.embedJpg(p.imageBytes)
       page.drawImage(img, { x: 0, y: 0, width: wPt, height: hPt })
     } else {
       page.drawRectangle({ x: 0, y: 0, width: wPt, height: hPt, color: WHITE })
-    }
-
-    const text = p.text.trim()
-    if (text) {
-      const pad = 14
-      const maxTextW = wPt - inset * 2 - pad * 2
-      const { size, lines } = fitFontSize(text, body, maxTextW, hPt * 0.25, 20, 12)
-      const lineH = size * 1.35
-      const textBlockH = lines.length * lineH
-
-      // Where the block of text sits, kept inside the safe margin.
-      const textBottom = inset + pad
-      const textTop = textBottom + textBlockH
-
-      if (p.imageBytes) {
-        await drawAdaptiveTextBand({
-          doc,
-          page,
-          x: 0,
-          width: wPt,
-          textBottom,
-          band: p.band,
-          lines,
-          size,
-          lineH,
-          font: body,
-        })
-      } else {
+      if (layout) {
         // Text-only page (no art): plain dark ink on the white background.
-        let ty = textTop - size
-        for (const line of lines) {
-          const lw = body.widthOfTextAtSize(line, size)
+        let ty = layout.textBottom + layout.lines.length * layout.lineH - layout.size
+        for (const line of layout.lines) {
+          const lw = body.widthOfTextAtSize(line, layout.size)
           page.drawText(line, {
             x: (wPt - lw) / 2,
             y: ty,
-            size,
+            size: layout.size,
             font: body,
             color: INK,
           })
-          ty -= lineH
+          ty -= layout.lineH
         }
       }
     }
