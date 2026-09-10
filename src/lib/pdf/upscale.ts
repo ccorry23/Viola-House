@@ -55,19 +55,26 @@ function sampleBottomBand(source: HTMLCanvasElement, frac = 0.3): BandStats {
 }
 
 export interface UpscaleResult {
-  png: Uint8Array
+  /** JPEG bytes of the print-resolution page/cover art. */
+  jpg: Uint8Array
   /** Brightness/colour of the text band region, for adaptive overlays. */
   band: BandStats
 }
 
+// JPEG quality for the illustrations. At 300 DPI a picture-book illustration is
+// visually indistinguishable at 0.9, but lossless PNG of the same detailed art
+// is 10–20× larger — a 28-page book came out at ~370 MB as PNG, which KDP
+// cannot process. JPEG brings that to tens of MB.
+const JPEG_QUALITY = 0.9
+
 /**
- * Upscale + cover-crop an image blob to exact pixel dimensions using a canvas.
- * Embedding, say, a 2588 px image on an 8.625 in page yields ~300 DPI — KDP
- * computes DPI from pixels ÷ inches, so hitting the pixel target is what
- * matters. High-quality smoothing keeps flat illustration acceptably crisp.
- * Also returns the brightness of the region where page text will sit.
+ * Upscale + cover-crop an image blob to exact pixel dimensions using a canvas,
+ * encoded as JPEG. Embedding, say, a 2588 px image on an 8.625 in page yields
+ * ~300 DPI — KDP computes DPI from pixels ÷ inches, so hitting the pixel target
+ * is what matters. High-quality smoothing keeps flat illustration acceptably
+ * crisp. Also returns the brightness of the region where page text will sit.
  */
-export async function upscaleToPng(
+export async function upscaleToImage(
   blob: Blob,
   wPx: number,
   hPx: number
@@ -76,10 +83,8 @@ export async function upscaleToPng(
   const canvas = document.createElement('canvas')
   canvas.width = wPx
   canvas.height = hPx
-  // alpha: false guarantees an opaque canvas — the exported PNG carries no
-  // alpha channel at all, so pdf-lib never attaches an SMask to it. Some
-  // source art (Gemini output, uploads) may itself have an alpha channel even
-  // when every pixel is opaque; compositing onto an opaque canvas strips it.
+  // alpha: false guarantees an opaque canvas (and JPEG has no alpha anyway), so
+  // no soft mask/transparency is ever introduced into the PDF.
   const ctx = canvas.getContext('2d', { alpha: false })!
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
@@ -94,10 +99,10 @@ export async function upscaleToPng(
   const band = sampleBottomBand(canvas)
 
   const out = await new Promise<Blob | null>((res) =>
-    canvas.toBlob(res, 'image/png')
+    canvas.toBlob(res, 'image/jpeg', JPEG_QUALITY)
   )
   if (!out) throw new Error('Image processing failed')
-  return { png: new Uint8Array(await out.arrayBuffer()), band }
+  return { jpg: new Uint8Array(await out.arrayBuffer()), band }
 }
 
 /** Render a solid-color PNG of given pixel size (placeholder / blank pages). */

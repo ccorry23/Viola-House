@@ -4,7 +4,7 @@ import { inToPx, interiorPageBoxIn, TRIM_SIZES } from '@/lib/kdp/constants'
 import type { Book, Page } from '@/lib/types'
 import { buildInteriorPdf, type InteriorPageInput } from './interior'
 import { buildCoverPdf } from './cover'
-import { upscaleToPng } from './upscale'
+import { upscaleToImage } from './upscale'
 
 export interface ExportResult {
   interior: Uint8Array
@@ -58,8 +58,8 @@ export async function exportBook(
   let frontBand: InteriorPageInput['band']
   if (hasCoverArt) {
     tick('Preparing the cover…')
-    const up = await upscaleToPng(book.style.characterSheet!, wPx, hPx)
-    frontBytes = up.png
+    const up = await upscaleToImage(book.style.characterSheet!, wPx, hPx)
+    frontBytes = up.jpg
     frontBand = up.band
     done++
     tick('Preparing the cover…')
@@ -69,18 +69,18 @@ export async function exportBook(
   for (const p of sorted) {
     n++
     tick(`Preparing page ${n} of ${sorted.length}…`)
-    let png: Uint8Array | null = null
+    let img: Uint8Array | null = null
     let band: InteriorPageInput['band']
     if (p.image) {
-      const up = await upscaleToPng(p.image, wPx, hPx)
-      png = up.png
+      const up = await upscaleToImage(p.image, wPx, hPx)
+      img = up.jpg
       band = up.band
     } else {
       missingImages++
     }
-    interiorPages.push({ text: p.text, pngBytes: png, band })
-    if (p.index === 0 && png && !frontBytes) {
-      frontBytes = png
+    interiorPages.push({ text: p.text, imageBytes: img, band })
+    if (p.index === 0 && img && !frontBytes) {
+      frontBytes = img
       frontBand = band
     }
     done++
@@ -106,7 +106,7 @@ export async function exportBook(
     showAuthor: book.showCoverAuthor !== false,
     trimSize: book.trimSize,
     pageCount: interior.pageCount,
-    frontPngBytes: frontBytes,
+    frontImageBytes: frontBytes,
     frontBand,
   })
   done++

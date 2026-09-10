@@ -21,8 +21,8 @@ const WHITE = rgb(1, 1, 1)
 
 export interface InteriorPageInput {
   text: string
-  /** Full-bleed PNG bytes at print resolution, or null for a text-only page. */
-  pngBytes: Uint8Array | null
+  /** Full-bleed JPEG bytes at print resolution, or null for a text-only page. */
+  imageBytes: Uint8Array | null
   /** Brightness/colour of the art where the text sits, for adaptive overlays. */
   band?: BandStats
 }
@@ -115,9 +115,9 @@ export async function buildInteriorPdf({
   // --- Story pages ---
   for (const p of pages) {
     const page = doc.addPage([wPt, hPt])
-    if (p.pngBytes) {
-      const png = await doc.embedPng(p.pngBytes)
-      page.drawImage(png, { x: 0, y: 0, width: wPt, height: hPt })
+    if (p.imageBytes) {
+      const img = await doc.embedJpg(p.imageBytes)
+      page.drawImage(img, { x: 0, y: 0, width: wPt, height: hPt })
     } else {
       page.drawRectangle({ x: 0, y: 0, width: wPt, height: hPt, color: WHITE })
     }
@@ -134,7 +134,7 @@ export async function buildInteriorPdf({
       const textBottom = inset + pad
       const textTop = textBottom + textBlockH
 
-      if (p.pngBytes) {
+      if (p.imageBytes) {
         await drawAdaptiveTextBand({
           doc,
           page,

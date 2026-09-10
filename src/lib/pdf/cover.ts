@@ -32,8 +32,8 @@ export interface BuildCoverInput {
   trimSize: TrimId
   /** Interior page count — drives spine width. */
   pageCount: number
-  /** Front cover art (upscaled PNG), or null for a plain colored cover. */
-  frontPngBytes: Uint8Array | null
+  /** Front cover art (upscaled JPEG), or null for a plain colored cover. */
+  frontImageBytes: Uint8Array | null
   /** Brightness/colour of the cover art where the title sits, for the scrim. */
   frontBand?: BandStats
 }
@@ -51,7 +51,7 @@ export async function buildCoverPdf({
   showAuthor = true,
   trimSize,
   pageCount,
-  frontPngBytes,
+  frontImageBytes,
   frontBand,
 }: BuildCoverInput): Promise<Uint8Array> {
   const trim = TRIM_SIZES[trimSize]
@@ -81,9 +81,9 @@ export async function buildCoverPdf({
   page.drawRectangle({ x: 0, y: 0, width: backW, height: hPt, color: BACK_BG })
 
   // Front cover art (or colored fallback).
-  if (frontPngBytes) {
-    const png = await doc.embedPng(frontPngBytes)
-    page.drawImage(png, { x: frontX, y: 0, width: frontW, height: hPt })
+  if (frontImageBytes) {
+    const img = await doc.embedJpg(frontImageBytes)
+    page.drawImage(img, { x: frontX, y: 0, width: frontW, height: hPt })
   } else {
     page.drawRectangle({ x: frontX, y: 0, width: frontW, height: hPt, color: BACK_BG })
   }
@@ -142,7 +142,7 @@ export async function buildCoverPdf({
     }
     const lineH = mainSize * 1.3
 
-    if (frontPngBytes) {
+    if (frontImageBytes) {
       await drawAdaptiveTextBand({
         doc,
         page,
