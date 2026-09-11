@@ -63,6 +63,32 @@ body {
   font-family: var(--font-display), Georgia, "Times New Roman", serif;
 }
 
+/*
+ * Preview faces for the body-font picker (Publish tab). These load the very
+ * same TTFs we embed into the print PDF, so the swatch shows the true typeface.
+ * Prefixed family names keep them separate from the next/font UI families.
+ */
+@font-face {
+  font-family: "VH Nunito";
+  src: url("/fonts/Nunito.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "VH Fraunces";
+  src: url("/fonts/Fraunces.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "VH Andika";
+  src: url("/fonts/Andika.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "VH Comic Neue";
+  src: url("/fonts/ComicNeue.ttf") format("truetype");
+  font-display: swap;
+}
+
 /* Distraction-free writing surface: no borders, generous measure. */
 .writing-surface {
   font-family: var(--font-display), Georgia, serif;

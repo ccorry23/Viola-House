@@ -13,6 +13,7 @@ import {
   type ExportProgress,
 } from '@/lib/pdf/export'
 import { TRIM_SIZES, spineWidthIn } from '@/lib/kdp/constants'
+import { BODY_FONTS, DEFAULT_BODY_FONT } from '@/lib/pdf/bodyFonts'
 import type { Book } from '@/lib/types'
 import { cn } from '@/lib/cn'
 import { ListingHelper } from './ListingHelper'
@@ -146,6 +147,51 @@ export function PublishPhase({ book }: { book: Book }) {
             Turn one off if your cover picture already has that text printed on
             it.
           </p>
+
+          <fieldset className="mt-4">
+            <legend className="text-xs font-semibold text-muted">
+              Story text font
+            </legend>
+            <p className="mt-1 text-xs text-muted">
+              The font used for the story on each page. Titles always use the
+              same display font.
+            </p>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {BODY_FONTS.map((f) => {
+                const selected = (book.bodyFont ?? DEFAULT_BODY_FONT) === f.id
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => patchBook(book.id, { bodyFont: f.id })}
+                    className={cn(
+                      'rounded-xl border p-3 text-left transition-colors',
+                      selected
+                        ? 'border-accent bg-accent-soft'
+                        : 'border-border hover:bg-surface-2'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">{f.label}</span>
+                      {selected && (
+                        <span className="text-xs font-semibold text-accent">
+                          ✓ Selected
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className="mt-1 text-lg leading-snug"
+                      style={{ fontFamily: f.previewStack }}
+                    >
+                      The quick brown fox.
+                    </div>
+                    <div className="mt-1 text-xs text-muted">{f.note}</div>
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
         </div>
 
         <button

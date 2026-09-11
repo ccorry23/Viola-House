@@ -1,4 +1,5 @@
 import type { TrimId } from './kdp/constants'
+import type { BodyFontId } from './pdf/bodyFonts'
 
 export type BookStatus = 'drafting' | 'illustrating' | 'ready'
 
@@ -68,6 +69,12 @@ export interface Book {
   showCoverAuthor?: boolean
   status: BookStatus
   trimSize: TrimId
+  /**
+   * The story-text (body) font for the print PDF, chosen from the curated set
+   * in `pdf/bodyFonts.ts`. Undefined means the default (Nunito); the display
+   * font for titles is always Fraunces and isn't affected by this.
+   */
+  bodyFont?: BodyFontId
   /** Full manuscript text (the writing surface's source of truth). */
   manuscriptText: string
   /**

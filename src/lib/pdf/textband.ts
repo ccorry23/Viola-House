@@ -56,8 +56,12 @@ export function computeBandStyle(
     : { r: br * 0.14, g: bg * 0.14, b: bb * 0.14 }
   const textColor = lightArt ? INK : WHITE
   const haloColor = lightArt ? WHITE : rgb(0.05, 0.04, 0.03)
-  const maxBlend = lightArt ? 0.85 : 0.8
-  const plateauBlend = maxBlend * 0.72
+  // Denser scrim behind white text on dark art: some previewers (notably
+  // Amazon's "Look Inside") render the page dimmer/downsampled, so a lighter
+  // pool let the art bleed through and the white text lost contrast. The soft
+  // top edge is unaffected — it still ramps from 0 alpha at scrimTop.
+  const maxBlend = lightArt ? 0.85 : 0.9
+  const plateauBlend = maxBlend * (lightArt ? 0.72 : 0.82)
 
   const extrasH = extraLines.reduce((s, l) => s + l.lineH, 0)
   const gap = extraLines.length ? Math.max(3, size * 0.2) : 0
@@ -127,16 +131,21 @@ export function drawBandText(opts: {
   const extraLines = opts.extraLines ?? []
   const { textColor, haloColor, textTop, gap } = style
 
+  // A solid outline built from two full rings of offsets (all 8 directions at
+  // two radii). A single thin halo survived our own PDF viewers but washed out
+  // in downsampling previewers like Amazon's; a thicker, complete ring keeps a
+  // dark edge around the white text wherever it's shown.
+  const ring = (r: number): Array<[number, number]> => {
+    const pts: Array<[number, number]> = []
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2
+      pts.push([Math.cos(a) * r, Math.sin(a) * r])
+    }
+    return pts
+  }
+
   const drawRow = (text: string, rSize: number, rFont: PDFFont, ty: number) => {
-    const o = Math.max(0.5, rSize * 0.04)
-    const offsets: Array<[number, number]> = [
-      [-o, 0],
-      [o, 0],
-      [0, -o],
-      [0, o],
-      [-o, -o],
-      [o, o],
-    ]
+    const offsets = [...ring(Math.max(0.8, rSize * 0.05)), ...ring(Math.max(1.3, rSize * 0.085))]
     const lw = rFont.widthOfTextAtSize(text, rSize)
     const lx = x + (width - lw) / 2
     for (const [dx, dy] of offsets) {

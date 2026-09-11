@@ -23,6 +23,23 @@ To ship it:
 3. In KDP, re-upload the new Interior + Cover PDFs.
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
+## Just added (this session)
+- **Body-font picker** (Publish tab): the author now chooses the story-text font
+  from a curated set of four — **Nunito** (default, rounded sans), **Fraunces**
+  (storybook serif), **Andika** (new-reader letterforms — single-story a/g), and
+  **Comic Neue** (playful). Stored per book as `book.bodyFont`; titles/cover still
+  use the Fraunces display font. Fonts are subset-embedded into both PDFs
+  (verified: all four embed + rasterize cleanly via mupdf). New TTFs live in
+  `public/fonts/` and an in-app preview swatch uses the same files.
+- **Stronger story-text contrast** so white text stays readable in Amazon's
+  Print Previewer (it renders pages dimmer/downsampled than a normal PDF viewer,
+  which was washing out the thin outline): the outline behind the text is now a
+  full, thicker two-ring stroke, and the scrim pool behind white text (on dark
+  art) is a bit more opaque. The seamless top fade is unchanged — the scrim still
+  ramps from 0 alpha at its top edge. Verified with a real headless export +
+  mupdf raster, including an emulated dim/downsample of Amazon's previewer.
+  **⇒ Re-export the book to pick these up** (same re-download/re-upload steps below).
+
 ## Recently fixed (why KDP was rejecting)
 - **The real cause was file size:** the interior embedded each page as a lossless **PNG**
   at 300 DPI → ~368 MB for 28 pages, which KDP couldn't process. Fixed by embedding the
