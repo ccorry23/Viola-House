@@ -15,6 +15,30 @@ const BASE_STYLE =
   'No text, no words, no letters, no captions, no page numbers anywhere in the image. ' +
   'Warm, friendly, age-appropriate for young children.'
 
+// Print-safe framing. The page edges are trimmed during printing, so important
+// content must sit inside a safe area — but the art must still bleed to the
+// edges (KDP rejects white borders), so this asks for a central safe zone, not
+// a margin/frame. "Middle ~88%" is a light buffer ("just enough"), a bit more
+// than KDP's minimum safe zone, without shrinking the art into a small box.
+const SAFE_FRAMING =
+  'Print framing: the illustration must still fill the entire frame edge to edge (full bleed — ' +
+  'no borders, frames, vignettes, or blank margins), but keep every important element — characters, ' +
+  'faces, and key objects — within the central safe area, roughly the middle 88% of the image, ' +
+  'comfortably clear of all four outer edges. Let only background extend into the outer edges; never ' +
+  'place anything important right against the top, bottom, or sides, because the edges get trimmed.'
+
+// Interior pages carry story text over the bottom of the page (on a soft scrim),
+// so keep the lower strip calm and free of anything the reader must see.
+const PAGE_TEXT_AREA =
+  'Keep the lower portion of the scene calmer and less busy — no important faces or key detail along ' +
+  'the bottom — leaving room for story text placed over the bottom of the page.'
+
+// Covers: despite the no-text rule the model sometimes renders a title; if it
+// does, it must stay clear of the edges so it can't be clipped at trim.
+const COVER_SAFE_TEXT =
+  'If any title or lettering appears, keep it well inside the top and side safe area, never touching ' +
+  'the edges, so it cannot be clipped when the cover is trimmed.'
+
 function styleClause({ descriptor, palette, characters }: StylePromptInput): string {
   const bits: string[] = []
   if (descriptor.trim()) bits.push(`Art style: ${descriptor.trim()}.`)
@@ -43,6 +67,8 @@ export function buildPagePrompt(
     styleClause(style),
     `Illustrate this moment from the story: "${pageText.trim()}"`,
     referenceClause,
+    SAFE_FRAMING,
+    PAGE_TEXT_AREA,
   ]
     .filter(Boolean)
     .join(' ')
@@ -109,6 +135,8 @@ export function buildReferencePrompt(style: StylePromptInput): string {
       'scene featuring the main character(s) prominently and capturing the story\'s ' +
       'mood, clearly and consistently designed so the same characters and style can ' +
       'be carried across every page of the book.',
+    SAFE_FRAMING,
+    COVER_SAFE_TEXT,
   ]
     .filter(Boolean)
     .join(' ')

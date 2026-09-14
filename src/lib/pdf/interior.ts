@@ -12,6 +12,7 @@ import {
   type TrimId,
 } from '@/lib/kdp/constants'
 import { loadPdfFonts } from './fonts'
+import type { BodyFontId } from './bodyFonts'
 import { fitFontSize } from './text'
 import { computeBandStyle, bakeScrim, drawBandText } from './textband'
 import type { BandStats } from './upscale'
@@ -32,6 +33,8 @@ export interface BuildInteriorInput {
   author?: string
   trimSize: TrimId
   pages: InteriorPageInput[]
+  /** Author's chosen story-text font; undefined = default (Nunito). */
+  bodyFont?: BodyFontId
 }
 
 /**
@@ -50,6 +53,7 @@ export async function buildInteriorPdf({
   author,
   trimSize,
   pages,
+  bodyFont,
 }: BuildInteriorInput): Promise<InteriorResult> {
   const trim = TRIM_SIZES[trimSize]
   const box = interiorPageBoxIn(trim)
@@ -60,7 +64,7 @@ export async function buildInteriorPdf({
 
   const doc = await PDFDocument.create()
   doc.registerFontkit(fontkit)
-  const fonts = await loadPdfFonts()
+  const fonts = await loadPdfFonts(bodyFont)
   const display = await doc.embedFont(fonts.display, { subset: true })
   const body = await doc.embedFont(fonts.body, { subset: true })
 

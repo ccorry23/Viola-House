@@ -94,6 +94,7 @@ export async function exportBook(
     author: book.author,
     trimSize: book.trimSize,
     pages: interiorPages,
+    bodyFont: book.bodyFont,
   })
   done++
   tick('Building the cover…')
@@ -108,6 +109,7 @@ export async function exportBook(
     pageCount: interior.pageCount,
     frontImageBytes: frontBytes,
     frontBand,
+    bodyFont: book.bodyFont,
   })
   done++
   tick('Almost done…')

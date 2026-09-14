@@ -12,6 +12,7 @@ import {
   type TrimId,
 } from '@/lib/kdp/constants'
 import { loadPdfFonts } from './fonts'
+import type { BodyFontId } from './bodyFonts'
 import { fitFontSize } from './text'
 import {
   computeBandStyle,
@@ -42,6 +43,8 @@ export interface BuildCoverInput {
   frontImageBytes: Uint8Array | null
   /** Brightness/colour of the cover art where the title sits, for the scrim. */
   frontBand?: BandStats
+  /** Author's chosen body font; used for the byline so it matches the interior. */
+  bodyFont?: BodyFontId
 }
 
 /**
@@ -59,6 +62,7 @@ export async function buildCoverPdf({
   pageCount,
   frontImageBytes,
   frontBand,
+  bodyFont,
 }: BuildCoverInput): Promise<Uint8Array> {
   const trim = TRIM_SIZES[trimSize]
   const wrap = coverWrapBoxIn(trim, pageCount)
@@ -71,7 +75,7 @@ export async function buildCoverPdf({
 
   const doc = await PDFDocument.create()
   doc.registerFontkit(fontkit)
-  const fonts = await loadPdfFonts()
+  const fonts = await loadPdfFonts(bodyFont)
   const display = await doc.embedFont(fonts.display, { subset: true })
   const body = await doc.embedFont(fonts.body, { subset: true })
 
