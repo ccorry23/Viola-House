@@ -24,6 +24,15 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Top-of-page art inset** (`src/lib/pdf/upscale.ts` + `TOP_ART_INSET_IN` in
+  `kdp/constants.ts`): every page and the cover now push illustration content
+  down ~3/8" from the top trim, and the freed top strip is filled with colour
+  bled up from the art's own top edge (a gentle ~4% vertical squash, so nothing
+  — title or bottom byline — is cropped). Still full-bleed (no white border);
+  applied at export time, so **re-exporting any existing book picks it up** (no
+  regeneration needed). Tune the amount via `TOP_ART_INSET_IN`. Verified with a
+  real headless export + mupdf raster (top marker moves down under a seamless
+  colour bleed, bottom marker preserved, story-text band intact).
 - **Print-safe framing in the image generator** (`src/lib/images/prompt.ts`): the
   page and cover prompts now tell the model to keep important content — faces, key
   objects, and any title/lettering — inside the central safe area (~middle 88%),
