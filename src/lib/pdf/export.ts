@@ -1,6 +1,6 @@
 'use client'
 
-import { inToPx, interiorPageBoxIn, TRIM_SIZES } from '@/lib/kdp/constants'
+import { inToPx, interiorPageBoxIn, TRIM_SIZES, TOP_ART_INSET_IN } from '@/lib/kdp/constants'
 import type { Book, Page } from '@/lib/types'
 import { buildInteriorPdf, type InteriorPageInput } from './interior'
 import { buildCoverPdf } from './cover'
@@ -37,6 +37,8 @@ export async function exportBook(
   const box = interiorPageBoxIn(trim)
   const wPx = inToPx(box.w)
   const hPx = inToPx(box.h)
+  // Push illustration content down from the top trim on every page + the cover.
+  const topInsetPx = inToPx(TOP_ART_INSET_IN)
 
   const sorted = [...pages].sort((a, b) => a.index - b.index)
   const interiorPages: InteriorPageInput[] = []
@@ -58,7 +60,7 @@ export async function exportBook(
   let frontBand: InteriorPageInput['band']
   if (hasCoverArt) {
     tick('Preparing the cover…')
-    const up = await upscaleToImage(book.style.characterSheet!, wPx, hPx)
+    const up = await upscaleToImage(book.style.characterSheet!, wPx, hPx, topInsetPx)
     frontBytes = up.jpg
     frontBand = up.band
     done++
@@ -72,7 +74,7 @@ export async function exportBook(
     let img: Uint8Array | null = null
     let band: InteriorPageInput['band']
     if (p.image) {
-      const up = await upscaleToImage(p.image, wPx, hPx)
+      const up = await upscaleToImage(p.image, wPx, hPx, topInsetPx)
       img = up.jpg
       band = up.band
     } else {

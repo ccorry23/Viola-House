@@ -14,6 +14,14 @@ export const PRINT_DPI = 300
 export const BLEED_IN = 0.125
 /** Keep text/important content this far inside the trim edge. */
 export const SAFE_MARGIN_IN = 0.25
+/**
+ * How far to push illustration content down from the top of every page and the
+ * cover, so nothing sits right against the top trim. The art is nudged down by
+ * this much and the freed top strip is filled with colour bled up from the art,
+ * so the page still bleeds to the edge (no white border) while no picture detail
+ * sits in the top ~3/8" that a trim can crop.
+ */
+export const TOP_ART_INSET_IN = 0.375
 export const MIN_PAGE_COUNT = 24
 /** White paper thickness per page (KDP cover calculator). */
 export const SPINE_IN_PER_PAGE_WHITE = 0.002252

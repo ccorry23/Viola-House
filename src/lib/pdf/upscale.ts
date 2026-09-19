@@ -77,7 +77,8 @@ const JPEG_QUALITY = 0.9
 export async function upscaleToImage(
   blob: Blob,
   wPx: number,
-  hPx: number
+  hPx: number,
+  topInsetPx = 0
 ): Promise<UpscaleResult> {
   const bmp = await createImageBitmap(blob)
   const canvas = document.createElement('canvas')
@@ -89,12 +90,29 @@ export async function upscaleToImage(
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
 
-  // Cover fit (fill the whole box, cropping overflow).
+  // The art occupies everything below the top inset strip; the strip itself is
+  // filled afterwards with colour bled up from the art, so the page still bleeds
+  // to the top edge but no picture detail sits in the trim-risk strip.
+  const inset = Math.max(0, Math.min(Math.round(topInsetPx), Math.floor(hPx / 2)))
+  const artTop = inset
+  // Vertical compression that frees the top strip (~4% for a 3/8" inset). Keeps
+  // the whole picture — the title and any bottom byline included — rather than
+  // cropping either end; the horizontal is untouched, so it's a gentle squash.
+  const vComp = (hPx - inset) / hPx
+
+  // Cover fit to the full page (same framing/crop as before), then compress that
+  // vertically into the region below the top strip and nudge it down.
   const scale = Math.max(wPx / bmp.width, hPx / bmp.height)
   const dw = bmp.width * scale
   const dh = bmp.height * scale
-  ctx.drawImage(bmp, (wPx - dw) / 2, (hPx - dh) / 2, dw, dh)
+  ctx.drawImage(bmp, (wPx - dw) / 2, artTop + ((hPx - dh) / 2) * vComp, dw, dh * vComp)
   bmp.close?.()
+
+  // Fill the top strip by stretching the art's top row upward — a seamless
+  // colour bleed that matches the art's own top edge (no hard seam, no border).
+  if (inset > 0) {
+    ctx.drawImage(canvas, 0, artTop, wPx, 1, 0, 0, wPx, inset)
+  }
 
   const band = sampleBottomBand(canvas)
 
