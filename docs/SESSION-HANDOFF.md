@@ -26,6 +26,13 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Edit page wording on the Pages tab** (`src/components/book/PagesPhase.tsx`):
+  every page card has an "✏️ Edit text" button (works locked or unlocked) that
+  opens an inline textarea. Saving rebuilds the manuscript from the page blocks
+  (edited page swapped in, pages separated by blank lines) and recomputes the
+  break offsets, then — when locked — refreshes the concrete Page records used by
+  export, **preserving each page's illustration** (a wording tweak no longer drops
+  the art). Verified the rebuild round-trips with no page merges/splits.
 - **Top-of-page art inset** (`src/lib/pdf/upscale.ts` + `TOP_ART_INSET_IN` in
   `kdp/constants.ts`): every page and the cover now push illustration content
   down ~3/8" from the top trim, and the freed top strip is filled with colour
