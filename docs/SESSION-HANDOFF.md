@@ -9,9 +9,11 @@ split into pages → AI-illustrate → export print-ready KDP PDFs.
 - **Live:** https://viola-house.vercel.app (public, no login unless cloud sync is enabled)
 - **Code:** `C:\dev\storybook` · GitHub: https://github.com/ccorry23/Viola-House
 - **Stack:** Next.js 16 + TS + Tailwind v4 + Dexie/IndexedDB (local-first) + pdf-lib/fontkit + Google Gemini (images + text)
-- **Dev:** `npm run dev` (PowerShell). Deploy is **CLI-only** (no GitHub auto-deploy):
-  `npx vercel --prod --yes` then `npx vercel alias set <deploy-url> viola-house.vercel.app`.
-  The Vercel CLI logs out periodically — re-auth with `npx vercel login` (account: ccorry23).
+- **Dev:** `npm run dev` (PowerShell).
+- **Deploy:** the GitHub repo is now **connected to Vercel** (project `viola-house`,
+  production branch `main`), so **merging a PR to `main` auto-deploys to production** —
+  no CLI needed. Production domain: `storybook-one-xi.vercel.app`. (Manual fallback
+  still works: `npx vercel --prod` from a logged-in clone, account ccorry23.)
 
 ## ▶ RIGHT NOW — the one thing to finish
 The book **"I Didn't Win Today"** (author: Craig Corry) is uploaded and sitting in
