@@ -48,6 +48,83 @@ export function PagesPhase({
 
   const locked = book.breaksLocked
 
+  // Inline per-page text editing (fix wording without re-splitting the story).
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [draft, setDraft] = useState('')
+  const [savingText, setSavingText] = useState(false)
+
+  function startEdit(pageIndex: number, currentText: string) {
+    setEditingIndex(pageIndex)
+    setDraft(currentText)
+  }
+
+  /**
+   * Save edited words for one page. Page text is a slice of the manuscript, so
+   * we rebuild the manuscript from the page blocks (the edited page swapped in),
+   * separated by blank lines, and recompute the break offsets to match. When the
+   * breaks are locked we also refresh the concrete Page records used by export,
+   * preserving each page's existing image.
+   */
+  async function savePageText(pageIndex: number) {
+    const text = draft.trim()
+    if (!text) {
+      toast.error('Page text can’t be empty.')
+      return
+    }
+    setSavingText(true)
+    try {
+      const blocks = pages.map((p, i) => {
+        if (i === pageIndex) return text
+        const from = p.sentences[0].start
+        const to = p.sentences[p.sentences.length - 1].end
+        return book.manuscriptText.slice(from, to).trim()
+      })
+      const manuscriptText = blocks.join('\n\n')
+      // Each page block starts right after a blank line, so its first character
+      // is a sentence start — a valid break offset.
+      const nextBreaks: number[] = []
+      let offset = 0
+      blocks.forEach((b, i) => {
+        if (i > 0) {
+          offset += 2 // the '\n\n' separator
+          nextBreaks.push(offset)
+        }
+        offset += b.length
+      })
+      await patchBook(book.id, { manuscriptText, pageBreaks: nextBreaks })
+
+      if (locked) {
+        const derived = pagesFromBreaks(manuscriptText, nextBreaks)
+        const existing = await getPages(book.id)
+        const now = Date.now()
+        const records: Page[] = derived.map((p, i) => {
+          const prev = existing[i]
+          return {
+            id: prev?.id ?? crypto.randomUUID(),
+            bookId: book.id,
+            index: i,
+            text: p.text,
+            // Preserve the illustration — a wording tweak shouldn't drop the art.
+            image: prev?.image,
+            imageHistory: prev?.imageHistory,
+            imageStatus: prev?.imageStatus ?? 'none',
+            imageSource: prev?.imageSource,
+            promptUsed: prev?.promptUsed,
+            updatedAt: now,
+          }
+        })
+        await replacePages(book.id, records)
+      }
+
+      setEditingIndex(null)
+      toast.success('Page updated')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save the page')
+    } finally {
+      setSavingText(false)
+    }
+  }
+
   function setBreaks(next: number[]) {
     patchBook(book.id, {
       pageBreaks: [...new Set(next)].sort((a, b) => a - b),
@@ -137,7 +214,7 @@ export function PagesPhase({
           </h2>
           <p className="text-sm text-muted">
             {locked
-              ? 'Locked. Unlock to change where pages break.'
+              ? 'Locked. Edit the words on any page below, or unlock to change where pages break.'
               : 'Click between sentences to start a new page, or merge pages together.'}
           </p>
         </div>
@@ -219,36 +296,75 @@ export function PagesPhase({
       <div className="mt-6 space-y-3">
         {pages.map((page, pageIndex) => {
           const pageStart = page.sentences[0]?.start ?? 0
+          const isEditing = editingIndex === pageIndex
           return (
             <div
               key={pageStart}
               className="rounded-2xl border border-border bg-surface p-4"
             >
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="font-display text-sm font-semibold text-muted">
                   Page {pageIndex + 1}
                 </span>
-                {pageIndex > 0 && !locked && (
-                  <button
-                    onClick={() => mergeUp(pageStart)}
-                    className="rounded-lg px-3 py-2 text-sm font-semibold text-accent hover:bg-accent-soft"
-                  >
-                    ⤒ Merge with previous
-                  </button>
-                )}
+                <div className="flex items-center gap-1">
+                  {pageIndex > 0 && !locked && !isEditing && (
+                    <button
+                      onClick={() => mergeUp(pageStart)}
+                      className="rounded-lg px-3 py-2 text-sm font-semibold text-accent hover:bg-accent-soft"
+                    >
+                      ⤒ Merge with previous
+                    </button>
+                  )}
+                  {!isEditing && (
+                    <button
+                      onClick={() => startEdit(pageIndex, page.text)}
+                      className="rounded-lg px-3 py-2 text-sm font-semibold text-accent hover:bg-accent-soft"
+                    >
+                      ✏️ Edit text
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <p className="font-display text-[17px] leading-relaxed">
-                {page.sentences.map((s, i) => (
-                  <span key={s.start}>
-                    {i > 0 && !locked && (
-                      <SplitHandle onClick={() => splitAt(s.start)} />
-                    )}
-                    {i > 0 && locked && ' '}
-                    {s.text}
-                  </span>
-                ))}
-              </p>
+              {isEditing ? (
+                <div>
+                  <textarea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    rows={Math.max(3, Math.ceil(draft.length / 60))}
+                    autoFocus
+                    className="w-full resize-y rounded-xl border border-border bg-background px-3 py-2 font-display text-[17px] leading-relaxed outline-none focus:border-accent"
+                  />
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      onClick={() => savePageText(pageIndex)}
+                      disabled={savingText}
+                      className="rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-accent-fg disabled:opacity-60"
+                    >
+                      {savingText ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => setEditingIndex(null)}
+                      disabled={savingText}
+                      className="rounded-xl border border-border px-3.5 py-2 text-sm font-semibold hover:bg-surface-2 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="font-display text-[17px] leading-relaxed">
+                  {page.sentences.map((s, i) => (
+                    <span key={s.start}>
+                      {i > 0 && !locked && (
+                        <SplitHandle onClick={() => splitAt(s.start)} />
+                      )}
+                      {i > 0 && locked && ' '}
+                      {s.text}
+                    </span>
+                  ))}
+                </p>
+              )}
             </div>
           )
         })}
