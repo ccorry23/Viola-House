@@ -64,6 +64,11 @@ export interface Book {
    */
   blurb?: string
   /**
+   * Optional illustration for the back cover (picked from the book's art or
+   * uploaded). Printed above the blurb. Local-only Blob, like the cover art.
+   */
+  backCoverImage?: Blob
+  /**
    * Whether to print the title on the cover. Off is useful when the cover art
    * already includes the title. Defaults to on (undefined).
    */

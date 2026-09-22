@@ -34,6 +34,11 @@ To ship it:
   generated Amazon description has a **"Use on back cover"** button that saves it
   into `book.blurb` (so it stops evaporating). Empty blurb = plain back cover
   (unchanged). Verified with a real headless cover render + mupdf raster.
+- **Back cover image** (`book.backCoverImage` + `BackCoverImagePicker`): an
+  optional illustration printed above the blurb — pick the cover art or any page
+  image, or upload one. Flattened to an opaque JPEG at export (KDP-safe),
+  contain-fit as a vignette; bottom stays clear for the barcode. Verified via a
+  headless render with an image.
   _(First slice of the Back Cover + Marketing Assets spec. Still open: benefit /
   marketing slides + batch export — pending confirmation of the real Amazon upload
   path, since KDP has no self-serve image carousel; extra images go via A+ Content.)_

@@ -47,6 +47,8 @@ export interface BuildCoverInput {
   bodyFont?: BodyFontId
   /** Back-cover blurb/description. Printed on the back cover when present. */
   blurb?: string
+  /** Optional back-cover illustration (flattened JPEG bytes), drawn above the blurb. */
+  backImageBytes?: Uint8Array | null
 }
 
 /**
@@ -66,6 +68,7 @@ export async function buildCoverPdf({
   frontBand,
   bodyFont,
   blurb,
+  backImageBytes,
 }: BuildCoverInput): Promise<Uint8Array> {
   const trim = TRIM_SIZES[trimSize]
   const wrap = coverWrapBoxIn(trim, pageCount)
@@ -93,41 +96,63 @@ export async function buildCoverPdf({
   // Back cover background.
   page.drawRectangle({ x: 0, y: 0, width: backW, height: hPt, color: BACK_BG })
 
-  // Back-cover blurb (optional). Sits in the upper portion of the back panel;
-  // the whole bottom strip is left clear for the barcode KDP auto-adds to the
-  // back cover (~2"×1.2", bottom corner). Reserving the full-width bottom band
-  // keeps that area safe regardless of the exact barcode placement.
-  if (blurb?.trim()) {
-    const BARCODE_RESERVE_IN = 1.6 // clear this much above the bottom trim
+  // Back cover content (optional image + blurb). Everything sits above a clear
+  // bottom band left for the barcode KDP auto-adds to the back cover (~2"×1.2",
+  // bottom corner); reserving the full-width bottom strip keeps it safe whatever
+  // the exact placement.
+  {
+    const BARCODE_RESERVE_IN = 1.6
     const colLeft = bleedPt + inset
     const colRight = backW - inset
     const colW = colRight - colLeft
     const topY = hPt - bleedPt - inset
     const bottomY = bleedPt + BARCODE_RESERVE_IN * PT_PER_INCH
-    const availH = topY - bottomY
-    const lineGap = 1.4
+    const hasBlurb = Boolean(blurb?.trim())
 
-    // Largest size (down to a floor) whose wrapped lines fit the safe height.
-    let size = 15
-    let lines = wrapText(blurb.trim(), body, size, colW)
-    for (; size >= 9; size--) {
-      lines = wrapText(blurb.trim(), body, size, colW)
-      if (lines.length * size * lineGap <= availH) break
+    // Illustration vignette at the top (contain-fit, so the whole picture shows
+    // on the background — no crop). Takes up to half the height when a blurb
+    // follows, otherwise most of it.
+    let blurbTop = topY
+    if (backImageBytes && backImageBytes.length) {
+      const img = await doc.embedJpg(backImageBytes)
+      const maxH = (topY - bottomY) * (hasBlurb ? 0.5 : 0.85)
+      const maxW = colW
+      const scale = Math.min(maxW / img.width, maxH / img.height)
+      const dw = img.width * scale
+      const dh = img.height * scale
+      page.drawImage(img, {
+        x: colLeft + (colW - dw) / 2,
+        y: topY - dh,
+        width: dw,
+        height: dh,
+      })
+      blurbTop = topY - dh - Math.max(12, dh * 0.06) // gap under the image
     }
 
-    // Vertically center the block within the available (barcode-safe) area.
-    const blockH = lines.length * size * lineGap
-    let ty = bottomY + (availH + blockH) / 2 - size
-    for (const line of lines) {
-      const lw = body.widthOfTextAtSize(line, size)
-      page.drawText(line, {
-        x: colLeft + (colW - lw) / 2,
-        y: ty,
-        size,
-        font: body,
-        color: INK,
-      })
-      ty -= size * lineGap
+    if (hasBlurb) {
+      const text = blurb!.trim()
+      const availH = blurbTop - bottomY
+      const lineGap = 1.4
+      let size = 15
+      let lines = wrapText(text, body, size, colW)
+      for (; size >= 9; size--) {
+        lines = wrapText(text, body, size, colW)
+        if (lines.length * size * lineGap <= availH) break
+      }
+      const blockH = lines.length * size * lineGap
+      // Centre in the remaining area (top-align if the image left little room).
+      let ty = bottomY + Math.max(0, (availH + blockH) / 2) - size
+      for (const line of lines) {
+        const lw = body.widthOfTextAtSize(line, size)
+        page.drawText(line, {
+          x: colLeft + (colW - lw) / 2,
+          y: ty,
+          size,
+          font: body,
+          color: INK,
+        })
+        ty -= size * lineGap
+      }
     }
   }
 

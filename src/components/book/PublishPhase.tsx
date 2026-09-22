@@ -17,6 +17,7 @@ import { BODY_FONTS, DEFAULT_BODY_FONT } from '@/lib/pdf/bodyFonts'
 import type { Book } from '@/lib/types'
 import { cn } from '@/lib/cn'
 import { ListingHelper } from './ListingHelper'
+import { BackCoverImagePicker } from './BackCoverImagePicker'
 
 const KDP_BOOKSHELF = 'https://kdp.amazon.com/en_US/bookshelf'
 
@@ -144,6 +145,8 @@ export function PublishPhase({ book }: { book: Book }) {
             Prints on the back cover. The bottom corner is left clear for
             Amazon&apos;s barcode.
           </p>
+
+          <BackCoverImagePicker book={book} />
 
           <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-semibold">
             <input

@@ -4,7 +4,7 @@ import { inToPx, interiorPageBoxIn, TRIM_SIZES, TOP_ART_INSET_IN } from '@/lib/k
 import type { Book, Page } from '@/lib/types'
 import { buildInteriorPdf, type InteriorPageInput } from './interior'
 import { buildCoverPdf } from './cover'
-import { upscaleToImage } from './upscale'
+import { upscaleToImage, flattenToJpeg } from './upscale'
 
 export interface ExportResult {
   interior: Uint8Array
@@ -102,6 +102,12 @@ export async function exportBook(
   tick('Building the cover…')
   await yieldToUi()
 
+  // Optional back-cover illustration → flattened, opaque JPEG (KDP-safe).
+  let backImageBytes: Uint8Array | null = null
+  if (book.backCoverImage) {
+    backImageBytes = (await flattenToJpeg(book.backCoverImage)).jpg
+  }
+
   const cover = await buildCoverPdf({
     title: book.title,
     author: book.author,
@@ -113,6 +119,7 @@ export async function exportBook(
     frontBand,
     bodyFont: book.bodyFont,
     blurb: book.blurb,
+    backImageBytes,
   })
   done++
   tick('Almost done…')
