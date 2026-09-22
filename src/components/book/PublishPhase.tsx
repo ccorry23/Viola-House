@@ -26,6 +26,7 @@ export function PublishPhase({ book }: { book: Book }) {
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<ExportProgress | null>(null)
   const [authorInput, setAuthorInput] = useState(book.author ?? '')
+  const [blurbInput, setBlurbInput] = useState(book.blurb ?? '')
   const trim = TRIM_SIZES[book.trimSize]
   const showCoverTitle = book.showCoverTitle !== false
   const showCoverAuthor = book.showCoverAuthor !== false
@@ -34,6 +35,11 @@ export function PublishPhase({ book }: { book: Book }) {
   useEffect(() => {
     setAuthorInput(book.author ?? '')
   }, [book.id, book.author])
+
+  // Keep the blurb field in sync (e.g. when the Listing Helper fills it in).
+  useEffect(() => {
+    setBlurbInput(book.blurb ?? '')
+  }, [book.id, book.blurb])
 
   const illustrated = pages.filter((p) => p.imageStatus === 'ready').length
   const stem = fileStem(book.title)
@@ -121,6 +127,24 @@ export function PublishPhase({ book }: { book: Book }) {
             placeholder="e.g. Jane Doe"
             className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           />
+
+          <label htmlFor="blurb" className="mt-3 block text-xs font-semibold text-muted">
+            Back cover description
+          </label>
+          <textarea
+            id="blurb"
+            value={blurbInput}
+            onChange={(e) => setBlurbInput(e.target.value)}
+            onBlur={() => patchBook(book.id, { blurb: blurbInput.trim() })}
+            rows={4}
+            placeholder="A few sentences about the story — printed on the book's back cover. (Leave blank for a plain back cover.)"
+            className="mt-1 w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+          <p className="mt-1 text-xs text-muted">
+            Prints on the back cover. The bottom corner is left clear for
+            Amazon&apos;s barcode.
+          </p>
+
           <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-semibold">
             <input
               type="checkbox"

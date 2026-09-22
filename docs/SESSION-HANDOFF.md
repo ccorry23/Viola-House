@@ -26,6 +26,17 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Designed print back cover** (`src/lib/pdf/cover.ts` + a `blurb` field on the
+  Book): the back panel of the wrap PDF now prints the book's **description/blurb**
+  (centered, wrapped, matched to the cover background) instead of being blank. The
+  whole bottom strip (~1.6") is left clear for KDP's auto-added barcode. Entered
+  via a **"Back cover description"** box on the Publish tab; the Listing Helper's
+  generated Amazon description has a **"Use on back cover"** button that saves it
+  into `book.blurb` (so it stops evaporating). Empty blurb = plain back cover
+  (unchanged). Verified with a real headless cover render + mupdf raster.
+  _(First slice of the Back Cover + Marketing Assets spec. Still open: benefit /
+  marketing slides + batch export — pending confirmation of the real Amazon upload
+  path, since KDP has no self-serve image carousel; extra images go via A+ Content.)_
 - **Edit page wording on the Pages tab** (`src/components/book/PagesPhase.tsx`):
   every page card has an "✏️ Edit text" button (works locked or unlocked) that
   opens an inline textarea. Saving rebuilds the manuscript from the page blocks

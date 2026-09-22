@@ -112,6 +112,7 @@ export async function exportBook(
     frontImageBytes: frontBytes,
     frontBand,
     bodyFont: book.bodyFont,
+    blurb: book.blurb,
   })
   done++
   tick('Almost done…')

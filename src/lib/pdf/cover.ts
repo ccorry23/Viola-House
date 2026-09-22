@@ -13,7 +13,7 @@ import {
 } from '@/lib/kdp/constants'
 import { loadPdfFonts } from './fonts'
 import type { BodyFontId } from './bodyFonts'
-import { fitFontSize } from './text'
+import { fitFontSize, wrapText } from './text'
 import {
   computeBandStyle,
   bakeScrim,
@@ -45,6 +45,8 @@ export interface BuildCoverInput {
   frontBand?: BandStats
   /** Author's chosen body font; used for the byline so it matches the interior. */
   bodyFont?: BodyFontId
+  /** Back-cover blurb/description. Printed on the back cover when present. */
+  blurb?: string
 }
 
 /**
@@ -63,6 +65,7 @@ export async function buildCoverPdf({
   frontImageBytes,
   frontBand,
   bodyFont,
+  blurb,
 }: BuildCoverInput): Promise<Uint8Array> {
   const trim = TRIM_SIZES[trimSize]
   const wrap = coverWrapBoxIn(trim, pageCount)
@@ -89,6 +92,44 @@ export async function buildCoverPdf({
 
   // Back cover background.
   page.drawRectangle({ x: 0, y: 0, width: backW, height: hPt, color: BACK_BG })
+
+  // Back-cover blurb (optional). Sits in the upper portion of the back panel;
+  // the whole bottom strip is left clear for the barcode KDP auto-adds to the
+  // back cover (~2"×1.2", bottom corner). Reserving the full-width bottom band
+  // keeps that area safe regardless of the exact barcode placement.
+  if (blurb?.trim()) {
+    const BARCODE_RESERVE_IN = 1.6 // clear this much above the bottom trim
+    const colLeft = bleedPt + inset
+    const colRight = backW - inset
+    const colW = colRight - colLeft
+    const topY = hPt - bleedPt - inset
+    const bottomY = bleedPt + BARCODE_RESERVE_IN * PT_PER_INCH
+    const availH = topY - bottomY
+    const lineGap = 1.4
+
+    // Largest size (down to a floor) whose wrapped lines fit the safe height.
+    let size = 15
+    let lines = wrapText(blurb.trim(), body, size, colW)
+    for (; size >= 9; size--) {
+      lines = wrapText(blurb.trim(), body, size, colW)
+      if (lines.length * size * lineGap <= availH) break
+    }
+
+    // Vertically center the block within the available (barcode-safe) area.
+    const blockH = lines.length * size * lineGap
+    let ty = bottomY + (availH + blockH) / 2 - size
+    for (const line of lines) {
+      const lw = body.widthOfTextAtSize(line, size)
+      page.drawText(line, {
+        x: colLeft + (colW - lw) / 2,
+        y: ty,
+        size,
+        font: body,
+        color: INK,
+      })
+      ty -= size * lineGap
+    }
+  }
 
   // Front title and/or author (bottom of the front cover, inside the trim safe
   // area). Each is independently optional — turning one off is useful when the
