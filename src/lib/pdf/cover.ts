@@ -130,27 +130,44 @@ export async function buildCoverPdf({
     }
 
     if (hasBlurb) {
-      const text = blurb!.trim()
       const availH = blurbTop - bottomY
       const lineGap = 1.4
+      // Honour the author's line breaks (a blank line adds paragraph spacing),
+      // wrapping each line to the column — so a short "what they'll learn" list
+      // prints as a list rather than one run-on paragraph.
+      const layoutLines = (size: number): string[] => {
+        const out: string[] = []
+        for (const raw of blurb!.split('\n')) {
+          const t = raw.trim()
+          if (!t) {
+            out.push('')
+            continue
+          }
+          for (const wl of wrapText(t, body, size, colW)) out.push(wl)
+        }
+        return out
+      }
+
       let size = 15
-      let lines = wrapText(text, body, size, colW)
+      let lines = layoutLines(size)
       for (; size >= 9; size--) {
-        lines = wrapText(text, body, size, colW)
+        lines = layoutLines(size)
         if (lines.length * size * lineGap <= availH) break
       }
       const blockH = lines.length * size * lineGap
       // Centre in the remaining area (top-align if the image left little room).
       let ty = bottomY + Math.max(0, (availH + blockH) / 2) - size
       for (const line of lines) {
-        const lw = body.widthOfTextAtSize(line, size)
-        page.drawText(line, {
-          x: colLeft + (colW - lw) / 2,
-          y: ty,
-          size,
-          font: body,
-          color: INK,
-        })
+        if (line) {
+          const lw = body.widthOfTextAtSize(line, size)
+          page.drawText(line, {
+            x: colLeft + (colW - lw) / 2,
+            y: ty,
+            size,
+            font: body,
+            color: INK,
+          })
+        }
         ty -= size * lineGap
       }
     }

@@ -26,6 +26,15 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **AI "Write it for me" for the back cover** (new `backcover` write mode +
+  `MARKETER_SYSTEM`): a button by the Publish-tab "Back cover description" box
+  generates a warm hook plus a short **"Along the way, children learn to:"**
+  bullet list (3 concrete lessons drawn only from the manuscript), and saves it
+  to `book.blurb`. The back-cover renderer now **honours line breaks** (blank
+  line = paragraph gap, one bullet per line), so the list prints as a list
+  instead of a run-on paragraph. Verified the list layout with a real cover
+  render; the AI call reuses the existing `/api/write` path (needs GEMINI_API_KEY,
+  set in prod).
 - **Designed print back cover** (`src/lib/pdf/cover.ts` + a `blurb` field on the
   Book): the back panel of the wrap PDF now prints the book's **description/blurb**
   (centered, wrapped, matched to the cover background) instead of being blank. The

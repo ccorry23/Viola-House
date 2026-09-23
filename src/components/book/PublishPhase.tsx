@@ -16,6 +16,7 @@ import { TRIM_SIZES, spineWidthIn } from '@/lib/kdp/constants'
 import { BODY_FONTS, DEFAULT_BODY_FONT } from '@/lib/pdf/bodyFonts'
 import type { Book } from '@/lib/types'
 import { cn } from '@/lib/cn'
+import { callWrite } from '@/lib/ai/writeClient'
 import { ListingHelper } from './ListingHelper'
 import { BackCoverImagePicker } from './BackCoverImagePicker'
 
@@ -28,6 +29,7 @@ export function PublishPhase({ book }: { book: Book }) {
   const [progress, setProgress] = useState<ExportProgress | null>(null)
   const [authorInput, setAuthorInput] = useState(book.author ?? '')
   const [blurbInput, setBlurbInput] = useState(book.blurb ?? '')
+  const [writingBlurb, setWritingBlurb] = useState(false)
   const trim = TRIM_SIZES[book.trimSize]
   const showCoverTitle = book.showCoverTitle !== false
   const showCoverAuthor = book.showCoverAuthor !== false
@@ -54,6 +56,31 @@ export function PublishPhase({ book }: { book: Book }) {
       pub.pageTexts.join('') !== nowTexts.join('')
     )
   }, [book.published, book.manuscriptText, pages])
+
+  async function writeBackCover() {
+    if (!book.manuscriptText.trim()) {
+      toast.error('Write your story first, then I can write the back cover.')
+      return
+    }
+    setWritingBlurb(true)
+    try {
+      const res = await callWrite({
+        mode: 'backcover',
+        manuscript: book.manuscriptText,
+        title: book.title,
+        author: book.author,
+      })
+      const text = (res.text ?? '').trim()
+      if (!text) throw new Error('No text came back — try again.')
+      setBlurbInput(text)
+      await patchBook(book.id, { blurb: text })
+      toast.success('Back cover written')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not write the back cover')
+    } finally {
+      setWritingBlurb(false)
+    }
+  }
 
   async function runExport() {
     if (pages.length === 0) {
@@ -129,9 +156,19 @@ export function PublishPhase({ book }: { book: Book }) {
             className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           />
 
-          <label htmlFor="blurb" className="mt-3 block text-xs font-semibold text-muted">
-            Back cover description
-          </label>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <label htmlFor="blurb" className="block text-xs font-semibold text-muted">
+              Back cover description
+            </label>
+            <button
+              type="button"
+              onClick={writeBackCover}
+              disabled={writingBlurb}
+              className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-accent hover:bg-accent-soft disabled:opacity-60"
+            >
+              {writingBlurb ? 'Writing…' : '✨ Write it for me'}
+            </button>
+          </div>
           <textarea
             id="blurb"
             value={blurbInput}

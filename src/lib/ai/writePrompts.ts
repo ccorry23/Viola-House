@@ -38,6 +38,7 @@ export type WriteMode =
   | 'description'
   | 'subtitle'
   | 'keywords'
+  | 'backcover'
 
 export interface WriteRequest {
   mode: WriteMode
@@ -61,7 +62,12 @@ export function isJsonMode(mode: WriteMode): boolean {
 /** Which persona to run a mode under. */
 export function systemFor(mode: WriteMode): string {
   if (mode === 'review') return REVIEWER_SYSTEM
-  if (mode === 'description' || mode === 'subtitle' || mode === 'keywords') {
+  if (
+    mode === 'description' ||
+    mode === 'subtitle' ||
+    mode === 'keywords' ||
+    mode === 'backcover'
+  ) {
     return MARKETER_SYSTEM
   }
   return WRITER_SYSTEM
@@ -148,6 +154,25 @@ export function buildWritePrompt(req: WriteRequest): string {
         'objects, each {"keyword": the phrase (<=50 chars), "why": a 3–8 word ' +
         'note naming the shopper or search it targets}. No prose outside the ' +
         'JSON.\n\n' +
+        `Manuscript:\n"""\n${req.manuscript ?? ''}\n"""`
+      )
+    case 'backcover':
+      return (
+        'Write the BACK COVER copy for this children\'s picture book.' +
+        (req.title?.trim() ? ` Title: "${req.title.trim()}".` : '') +
+        (req.author?.trim() ? ` Author: ${req.author.trim()}.` : '') +
+        ' Two parts, separated by one blank line:\n' +
+        '1) A warm, inviting hook of 2–3 short sentences about the story and ' +
+        'its heart — draw the reader in without giving away the ending.\n' +
+        '2) A short list telling parents what their child will gain: begin with ' +
+        'a brief lead-in line (for example "Along the way, children learn to:"), ' +
+        'then exactly 3 lines that each start with "• " and are 3–7 words, ' +
+        'naming a concrete, honest lesson or skill from the story.\n' +
+        'Base everything ONLY on the manuscript below — never invent lessons ' +
+        'that are not in it. Keep the whole thing under about 90 words. Return ' +
+        'ONLY the copy as plain text with real line breaks (one bullet per ' +
+        'line); no title, no headings, no markdown symbols other than the "•" ' +
+        'bullets, and no surrounding quotation marks.\n\n' +
         `Manuscript:\n"""\n${req.manuscript ?? ''}\n"""`
       )
     case 'review':
