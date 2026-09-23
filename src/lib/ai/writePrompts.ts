@@ -39,6 +39,7 @@ export type WriteMode =
   | 'subtitle'
   | 'keywords'
   | 'backcover'
+  | 'benefits'
 
 export interface WriteRequest {
   mode: WriteMode
@@ -66,7 +67,8 @@ export function systemFor(mode: WriteMode): string {
     mode === 'description' ||
     mode === 'subtitle' ||
     mode === 'keywords' ||
-    mode === 'backcover'
+    mode === 'backcover' ||
+    mode === 'benefits'
   ) {
     return MARKETER_SYSTEM
   }
@@ -173,6 +175,24 @@ export function buildWritePrompt(req: WriteRequest): string {
         'ONLY the copy as plain text with real line breaks (one bullet per ' +
         'line); no title, no headings, no markdown symbols other than the "•" ' +
         'bullets, and no surrounding quotation marks.\n\n' +
+        `Manuscript:\n"""\n${req.manuscript ?? ''}\n"""`
+      )
+    case 'benefits':
+      return (
+        'Write copy for an Amazon A+ Content marketing banner for this ' +
+        'children\'s picture book.' +
+        (req.title?.trim() ? ` Title: "${req.title.trim()}".` : '') +
+        ' Output exactly this, as plain text:\n' +
+        '- Line 1: a short, warm HEADLINE (3–7 words) capturing the heart or ' +
+        'promise of the book.\n' +
+        '- Then 3 more lines, one per line, each a short benefit for the child ' +
+        '(3–7 words) — a concrete thing they learn, feel, or practice, drawn ' +
+        'ONLY from the manuscript.\n' +
+        'Amazon A+ rules — do NOT use any pricing, promotional, or time-' +
+        'sensitive words (for example: free, buy, bonus, discount, sale, ' +
+        'affordable, shop, new, now, latest, best, or holiday references), and ' +
+        'no external links. Return ONLY the 4 lines, one per line, with no ' +
+        'numbering, no bullet characters, no markdown, and no quotation marks.\n\n' +
         `Manuscript:\n"""\n${req.manuscript ?? ''}\n"""`
       )
     case 'review':
