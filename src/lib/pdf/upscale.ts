@@ -123,6 +123,37 @@ export async function upscaleToImage(
   return { jpg: new Uint8Array(await out.arrayBuffer()), band }
 }
 
+/**
+ * Flatten an image blob to an OPAQUE JPEG (white behind any transparency),
+ * scaled so its longest side is at most `maxDim`. Used for the back-cover
+ * illustration: keeps aspect ratio (no crop), stays KDP-safe (no transparency),
+ * and keeps the file small. Returns bytes plus the encoded pixel dimensions.
+ */
+export async function flattenToJpeg(
+  blob: Blob,
+  maxDim = 1400
+): Promise<{ jpg: Uint8Array; width: number; height: number }> {
+  const bmp = await createImageBitmap(blob)
+  const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height))
+  const w = Math.max(1, Math.round(bmp.width * scale))
+  const h = Math.max(1, Math.round(bmp.height * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d', { alpha: false })!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, w, h)
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(bmp, 0, 0, w, h)
+  bmp.close?.()
+  const out = await new Promise<Blob | null>((res) =>
+    canvas.toBlob(res, 'image/jpeg', JPEG_QUALITY)
+  )
+  if (!out) throw new Error('Image processing failed')
+  return { jpg: new Uint8Array(await out.arrayBuffer()), width: w, height: h }
+}
+
 /** Render a solid-color PNG of given pixel size (placeholder / blank pages). */
 export async function solidPng(
   wPx: number,

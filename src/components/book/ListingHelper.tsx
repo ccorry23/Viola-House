@@ -9,6 +9,7 @@ import {
   type KeywordItem,
 } from '@/lib/ai/writeClient'
 import { useOnline } from '@/lib/hooks/useOnline'
+import { patchBook } from '@/lib/db/dexie'
 import type { Book } from '@/lib/types'
 
 type Tool = 'description' | 'subtitle' | 'keywords'
@@ -116,6 +117,15 @@ export function ListingHelper({ book }: { book: Book }) {
                 className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"
               >
                 Copy
+              </button>
+              <button
+                onClick={async () => {
+                  await patchBook(book.id, { blurb: description })
+                  toast.success('Saved as the back cover description')
+                }}
+                className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"
+              >
+                Use on back cover
               </button>
               <span className="text-xs text-muted">
                 {description.split(/\s+/).filter(Boolean).length} words ·{' '}

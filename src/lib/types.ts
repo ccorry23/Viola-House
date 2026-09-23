@@ -58,6 +58,17 @@ export interface Book {
   /** Author name, shown on the cover and interior title page. */
   author?: string
   /**
+   * Back-cover description / blurb. Printed on the book's back cover, and a
+   * handy place to keep the Amazon description so it isn't re-generated each
+   * time. Optional; the back cover stays plain when empty.
+   */
+  blurb?: string
+  /**
+   * Optional illustration for the back cover (picked from the book's art or
+   * uploaded). Printed above the blurb. Local-only Blob, like the cover art.
+   */
+  backCoverImage?: Blob
+  /**
    * Whether to print the title on the cover. Off is useful when the cover art
    * already includes the title. Defaults to on (undefined).
    */
