@@ -155,13 +155,25 @@ export async function buildCoverPdf({
     const up = await upscaleToImage(backImageBlob, backWpx, backHpx)
 
     if (hasBlurb) {
-      const style = computeBandStyle(
+      const base = computeBandStyle(
         up.band,
         backTextBottom,
         backLines.length,
         backSize,
         backLineH
       )
+      // The blurb sits mid-panel (above the barcode strip), so darken only a
+      // pool behind it: fade out below the last line so the bottom of the art
+      // stays bright, and keep the pool a little lighter than interior pages
+      // (the halo outline carries legibility).
+      const style: BandStyle = {
+        ...base,
+        plateauBlend: Math.min(base.plateauBlend, 0.6),
+        fadeOut: {
+          plateauEnd: backTextBottom - backSize * 0.4,
+          end: backTextBottom - backSize * 4.5,
+        },
+      }
       const composited = await bakeScrim(up.jpg, hPt, style)
       const img = await doc.embedJpg(composited)
       page.drawImage(img, { x: 0, y: 0, width: backW, height: hPt })
