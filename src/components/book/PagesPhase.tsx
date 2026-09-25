@@ -11,7 +11,11 @@ import {
   validBreaks,
 } from '@/lib/pages/split'
 import type { Book, Page } from '@/lib/types'
-import { MIN_PAGE_COUNT } from '@/lib/kdp/constants'
+import {
+  MIN_PAGE_COUNT,
+  HARDCOVER_MIN_PAGES,
+  paddedPageCount,
+} from '@/lib/kdp/constants'
 import { cn } from '@/lib/cn'
 
 export function PagesPhase({
@@ -276,7 +280,10 @@ export function PagesPhase({
               Set pages
             </button>
             <span className="text-xs text-muted">
-              KDP needs at least {MIN_PAGE_COUNT}. Your story has{' '}
+              KDP needs at least{' '}
+              {book.binding === 'hardcover' ? HARDCOVER_MIN_PAGES : MIN_PAGE_COUNT}{' '}
+              for a {book.binding === 'hardcover' ? 'hardcover' : 'paperback'}. Your
+              story has{' '}
               {sentences.length}{' '}
               {sentences.length === 1 ? 'sentence' : 'sentences'}, so that’s the
               most pages possible.
@@ -285,13 +292,25 @@ export function PagesPhase({
         </div>
       )}
 
-      {pages.length < MIN_PAGE_COUNT && (
-        <p className="mt-3 rounded-lg bg-[color:var(--warn)]/12 px-3 py-2 text-xs text-[color:var(--warn)]">
-          KDP paperbacks need at least {MIN_PAGE_COUNT} interior pages. You have{' '}
-          {pages.length}. Blank pages will be added automatically at export to
-          reach the minimum — your story pages are unaffected.
-        </p>
-      )}
+      {book.binding === 'hardcover'
+        ? pages.length + 2 < HARDCOVER_MIN_PAGES && (
+            <p className="mt-3 rounded-lg bg-[color:var(--warn)]/12 px-3 py-2 text-xs text-[color:var(--warn)]">
+              <strong>Hardcover selected:</strong> KDP hardcovers need at least{' '}
+              {HARDCOVER_MIN_PAGES} pages. You have {pages.length} story pages (
+              {pages.length + 2} with the title and copyright pages), so{' '}
+              {paddedPageCount(pages.length, 'hardcover') - (pages.length + 2)}{' '}
+              blank pages would be added at the end. Try a higher page count above
+              (up to one page per sentence), or switch back to paperback on the
+              Publish tab.
+            </p>
+          )
+        : pages.length < MIN_PAGE_COUNT && (
+            <p className="mt-3 rounded-lg bg-[color:var(--warn)]/12 px-3 py-2 text-xs text-[color:var(--warn)]">
+              KDP paperbacks need at least {MIN_PAGE_COUNT} interior pages. You have{' '}
+              {pages.length}. Blank pages will be added automatically at export to
+              reach the minimum — your story pages are unaffected.
+            </p>
+          )}
 
       <div className="mt-6 space-y-3">
         {pages.map((page, pageIndex) => {

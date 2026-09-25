@@ -6,7 +6,8 @@ import {
   BLEED_IN,
   SAFE_MARGIN_IN,
   PT_PER_INCH,
-  MIN_PAGE_COUNT,
+  minInteriorPages,
+  type BindingId,
   TRIM_SIZES,
   interiorPageBoxIn,
   type TrimId,
@@ -35,6 +36,8 @@ export interface BuildInteriorInput {
   pages: InteriorPageInput[]
   /** Author's chosen story-text font; undefined = default (Nunito). */
   bodyFont?: BodyFontId
+  /** Binding decides the minimum page count we pad to (24 paperback, 75 hardcover). */
+  binding?: BindingId
 }
 
 /**
@@ -54,6 +57,7 @@ export async function buildInteriorPdf({
   trimSize,
   pages,
   bodyFont,
+  binding = 'paperback',
 }: BuildInteriorInput): Promise<InteriorResult> {
   const trim = TRIM_SIZES[trimSize]
   const box = interiorPageBoxIn(trim)
@@ -176,7 +180,8 @@ export async function buildInteriorPdf({
 
   // --- Pad to KDP minimum + even count ---
   let total = doc.getPageCount()
-  while (total < MIN_PAGE_COUNT || total % 2 !== 0) {
+  const minPages = minInteriorPages(binding)
+  while (total < minPages || total % 2 !== 0) {
     addBlank()
     total++
   }
