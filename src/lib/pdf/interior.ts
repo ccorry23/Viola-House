@@ -140,7 +140,9 @@ export async function buildInteriorPdf({
         layout.textBottom,
         layout.lines.length,
         layout.size,
-        layout.lineH
+        layout.lineH,
+        [],
+        'soft'
       )
       const composited = await bakeScrim(p.imageBytes, hPt, style)
       const img = await doc.embedJpg(composited)
