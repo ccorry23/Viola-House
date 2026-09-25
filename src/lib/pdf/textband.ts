@@ -49,7 +49,10 @@ export function computeBandStyle(
   lineCount: number,
   size: number,
   lineH: number,
-  extraLines: ExtraLine[] = []
+  extraLines: ExtraLine[] = [],
+  /** 'soft' = the original, lighter pool behind white text on dark art (story
+   *  pages); 'strong' = the denser pool used on the covers. */
+  darkPool: 'soft' | 'strong' = 'strong'
 ): BandStyle {
   const lum = band?.luminance ?? 0.5
   const br = band?.r ?? 0.5
@@ -66,8 +69,11 @@ export function computeBandStyle(
   // Amazon's "Look Inside") render the page dimmer/downsampled, so a lighter
   // pool let the art bleed through and the white text lost contrast. The soft
   // top edge is unaffected — it still ramps from 0 alpha at scrimTop.
-  const maxBlend = lightArt ? 0.85 : 0.9
-  const plateauBlend = maxBlend * (lightArt ? 0.72 : 0.82)
+  // Story pages keep the original lighter pool (the thicker outline carries
+  // legibility); authors found the denser one made the pictures too dark.
+  const softDark = darkPool === 'soft'
+  const maxBlend = lightArt ? 0.85 : softDark ? 0.8 : 0.9
+  const plateauBlend = maxBlend * (lightArt || softDark ? 0.72 : 0.82)
 
   const extrasH = extraLines.reduce((s, l) => s + l.lineH, 0)
   const gap = extraLines.length ? Math.max(3, size * 0.2) : 0

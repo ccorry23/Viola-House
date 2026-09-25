@@ -26,6 +26,12 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Story-page shading back to its original strength**: on pages with darker
+  art, the pool behind the white story text is back to the pre-Sep-11 level
+  (blend 0.8, plateau ×0.72) — the author found the denser pool made the
+  interior too dark. The thicker text outline from that change stays. Covers
+  keep the stronger pool (`computeBandStyle(..., darkPool: 'soft' | 'strong')`;
+  interior passes `'soft'`). Bright-art pages (light wash + dark text) unchanged.
 - **Lighter back-cover shading**: the scrim behind the blurb on an illustrated
   back cover is now a *pool* — it fades in above the text, holds behind it, and
   fades back out below the last line (`BandStyle.fadeOut` in `textband.ts`), so
