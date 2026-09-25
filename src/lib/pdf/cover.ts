@@ -6,6 +6,7 @@ import {
   BLEED_IN,
   SAFE_MARGIN_IN,
   PT_PER_INCH,
+  PRINT_DPI,
   TRIM_SIZES,
   coverWrapBoxIn,
   spineWidthIn,
@@ -21,7 +22,7 @@ import {
   type ExtraLine,
   type BandStyle,
 } from './textband'
-import type { BandStats } from './upscale'
+import { upscaleToImage, type BandStats } from './upscale'
 
 const ACCENT = rgb(0.71, 0.28, 0.42)
 const BACK_BG = rgb(0.96, 0.89, 0.92)
@@ -47,8 +48,9 @@ export interface BuildCoverInput {
   bodyFont?: BodyFontId
   /** Back-cover blurb/description. Printed on the back cover when present. */
   blurb?: string
-  /** Optional back-cover illustration (flattened JPEG bytes), drawn above the blurb. */
-  backImageBytes?: Uint8Array | null
+  /** Optional back-cover illustration. When set, it fills the back cover full-bleed
+   *  and the blurb is layered over it (like the interior pages). */
+  backImageBlob?: Blob | null
 }
 
 /**
@@ -68,7 +70,7 @@ export async function buildCoverPdf({
   frontBand,
   bodyFont,
   blurb,
-  backImageBytes,
+  backImageBlob,
 }: BuildCoverInput): Promise<Uint8Array> {
   const trim = TRIM_SIZES[trimSize]
   const wrap = coverWrapBoxIn(trim, pageCount)
@@ -93,82 +95,94 @@ export async function buildCoverPdf({
   const frontX = backW + spinePt
   const frontW = trimWPt + bleedPt
 
-  // Back cover background.
-  page.drawRectangle({ x: 0, y: 0, width: backW, height: hPt, color: BACK_BG })
+  // --- Back cover ---------------------------------------------------------
+  // With an illustration: it fills the back cover full-bleed and the blurb is
+  // layered over it in a soft readable band — the same treatment as the interior
+  // pages (scrim baked into the art pixels for KDP-safe opacity, halo text on
+  // top). Without one: a plain coloured panel with the blurb centred.
+  // Either way the blurb sits ABOVE a clear ~1.6" bottom strip reserved for the
+  // barcode KDP auto-adds to the back cover.
+  const BARCODE_RESERVE_IN = 1.6
+  const backColLeft = bleedPt + inset
+  const backColW = backW - inset - backColLeft
+  const backTopY = hPt - bleedPt - inset
+  const backTextBottom = bleedPt + BARCODE_RESERVE_IN * PT_PER_INCH
+  const hasBlurb = Boolean(blurb?.trim())
 
-  // Back cover content (optional image + blurb). Everything sits above a clear
-  // bottom band left for the barcode KDP auto-adds to the back cover (~2"×1.2",
-  // bottom corner); reserving the full-width bottom strip keeps it safe whatever
-  // the exact placement.
-  {
-    const BARCODE_RESERVE_IN = 1.6
-    const colLeft = bleedPt + inset
-    const colRight = backW - inset
-    const colW = colRight - colLeft
-    const topY = hPt - bleedPt - inset
-    const bottomY = bleedPt + BARCODE_RESERVE_IN * PT_PER_INCH
-    const hasBlurb = Boolean(blurb?.trim())
-
-    // Illustration vignette at the top (contain-fit, so the whole picture shows
-    // on the background — no crop). Takes up to half the height when a blurb
-    // follows, otherwise most of it.
-    let blurbTop = topY
-    if (backImageBytes && backImageBytes.length) {
-      const img = await doc.embedJpg(backImageBytes)
-      const maxH = (topY - bottomY) * (hasBlurb ? 0.5 : 0.85)
-      const maxW = colW
-      const scale = Math.min(maxW / img.width, maxH / img.height)
-      const dw = img.width * scale
-      const dh = img.height * scale
-      page.drawImage(img, {
-        x: colLeft + (colW - dw) / 2,
-        y: topY - dh,
-        width: dw,
-        height: dh,
-      })
-      blurbTop = topY - dh - Math.max(12, dh * 0.06) // gap under the image
+  // Wrap the blurb (honouring line breaks; a blank line is a paragraph gap) and
+  // pick the largest body size that fits between the barcode strip and the top.
+  const backLayout = (size: number): string[] => {
+    const out: string[] = []
+    for (const raw of (blurb ?? '').split('\n')) {
+      const t = raw.trim()
+      if (!t) {
+        out.push('')
+        continue
+      }
+      for (const wl of wrapText(t, body, size, backColW)) out.push(wl)
     }
+    return out
+  }
+  const backAvailH = backTopY - backTextBottom
+  const backLineGapK = 1.4
+  let backSize = 15
+  let backLines = backLayout(backSize)
+  for (; backSize >= 9; backSize--) {
+    backLines = backLayout(backSize)
+    if (backLines.length * backSize * backLineGapK <= backAvailH) break
+  }
+  const backLineH = backSize * backLineGapK
+
+  if (backImageBlob) {
+    // Cover-fit the art to the back panel (full bleed), bake a soft scrim behind
+    // the blurb, then draw the art + halo text — exactly like an interior page.
+    const backWpx = Math.round((backW / PT_PER_INCH) * PRINT_DPI)
+    const backHpx = Math.round((hPt / PT_PER_INCH) * PRINT_DPI)
+    const up = await upscaleToImage(backImageBlob, backWpx, backHpx)
 
     if (hasBlurb) {
-      const availH = blurbTop - bottomY
-      const lineGap = 1.4
-      // Honour the author's line breaks (a blank line adds paragraph spacing),
-      // wrapping each line to the column — so a short "what they'll learn" list
-      // prints as a list rather than one run-on paragraph.
-      const layoutLines = (size: number): string[] => {
-        const out: string[] = []
-        for (const raw of blurb!.split('\n')) {
-          const t = raw.trim()
-          if (!t) {
-            out.push('')
-            continue
-          }
-          for (const wl of wrapText(t, body, size, colW)) out.push(wl)
-        }
-        return out
-      }
-
-      let size = 15
-      let lines = layoutLines(size)
-      for (; size >= 9; size--) {
-        lines = layoutLines(size)
-        if (lines.length * size * lineGap <= availH) break
-      }
-      const blockH = lines.length * size * lineGap
-      // Centre in the remaining area (top-align if the image left little room).
-      let ty = bottomY + Math.max(0, (availH + blockH) / 2) - size
-      for (const line of lines) {
+      const style = computeBandStyle(
+        up.band,
+        backTextBottom,
+        backLines.length,
+        backSize,
+        backLineH
+      )
+      const composited = await bakeScrim(up.jpg, hPt, style)
+      const img = await doc.embedJpg(composited)
+      page.drawImage(img, { x: 0, y: 0, width: backW, height: hPt })
+      drawBandText({
+        page,
+        x: 0,
+        width: backW,
+        lines: backLines,
+        size: backSize,
+        lineH: backLineH,
+        font: body,
+        style,
+      })
+    } else {
+      const img = await doc.embedJpg(up.jpg)
+      page.drawImage(img, { x: 0, y: 0, width: backW, height: hPt })
+    }
+  } else {
+    // No art: plain coloured panel with the blurb centred in dark ink.
+    page.drawRectangle({ x: 0, y: 0, width: backW, height: hPt, color: BACK_BG })
+    if (hasBlurb) {
+      const blockH = backLines.length * backLineH
+      let ty = backTextBottom + Math.max(0, (backAvailH + blockH) / 2) - backSize
+      for (const line of backLines) {
         if (line) {
-          const lw = body.widthOfTextAtSize(line, size)
+          const lw = body.widthOfTextAtSize(line, backSize)
           page.drawText(line, {
-            x: colLeft + (colW - lw) / 2,
+            x: backColLeft + (backColW - lw) / 2,
             y: ty,
-            size,
+            size: backSize,
             font: body,
             color: INK,
           })
         }
-        ty -= size * lineGap
+        ty -= backLineH
       }
     }
   }
@@ -312,8 +326,9 @@ export async function buildCoverPdf({
     }
   }
 
-  // Back cover note.
-  {
+  // Back cover note — only on the plain (no-art) back cover, where it's legible
+  // and out of the barcode corner. Omitted over a full-bleed illustration.
+  if (!backImageBlob) {
     const note = 'Made with Viola House'
     const s = 11
     const nw = body.widthOfTextAtSize(note, s)
