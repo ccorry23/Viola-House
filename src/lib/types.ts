@@ -1,4 +1,4 @@
-import type { TrimId } from './kdp/constants'
+import type { BindingId, TrimId } from './kdp/constants'
 import type { BodyFontId } from './pdf/bodyFonts'
 
 export type BookStatus = 'drafting' | 'illustrating' | 'ready'
@@ -80,6 +80,12 @@ export interface Book {
   showCoverAuthor?: boolean
   status: BookStatus
   trimSize: TrimId
+  /** Print binding. Undefined = paperback. Hardcover needs 75+ pages and a
+   *  KDP hardcover trim size (see `hardcoverBlockers`). */
+  binding?: BindingId
+  /** Hardcover spine width (inches) pasted from KDP's cover calculator. When
+   *  unset we use an estimate from the page count. */
+  hardcoverSpineIn?: number
   /**
    * The story-text (body) font for the print PDF, chosen from the curated set
    * in `pdf/bodyFonts.ts`. Undefined means the default (Nunito); the display

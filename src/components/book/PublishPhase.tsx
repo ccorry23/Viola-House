@@ -12,7 +12,14 @@ import {
   type ExportResult,
   type ExportProgress,
 } from '@/lib/pdf/export'
-import { TRIM_SIZES, spineWidthIn } from '@/lib/kdp/constants'
+import {
+  TRIM_SIZES,
+  HARDCOVER_MIN_PAGES,
+  coverWrapBoxIn,
+  hardcoverBlockers,
+  paddedPageCount,
+  spineWidthIn,
+} from '@/lib/kdp/constants'
 import { BODY_FONTS, DEFAULT_BODY_FONT } from '@/lib/pdf/bodyFonts'
 import type { Book } from '@/lib/types'
 import { cn } from '@/lib/cn'
@@ -20,6 +27,7 @@ import { callWrite } from '@/lib/ai/writeClient'
 import { ListingHelper } from './ListingHelper'
 import { BackCoverImagePicker } from './BackCoverImagePicker'
 import { MarketingSlide } from './MarketingSlide'
+import { BindingPicker } from './BindingPicker'
 
 const KDP_BOOKSHELF = 'https://kdp.amazon.com/en_US/bookshelf'
 
@@ -32,6 +40,26 @@ export function PublishPhase({ book }: { book: Book }) {
   const [blurbInput, setBlurbInput] = useState(book.blurb ?? '')
   const [writingBlurb, setWritingBlurb] = useState(false)
   const trim = TRIM_SIZES[book.trimSize]
+
+  // Binding + hardcover safeguards.
+  const binding = book.binding ?? 'paperback'
+  const isHardcover = binding === 'hardcover'
+  const bindingLabel = isHardcover ? 'hardcover' : 'paperback'
+  const storyPages = pages.length
+  const finalPages = paddedPageCount(storyPages, binding)
+  const blanksAdded = finalPages - (storyPages + 2)
+  const blockers = isHardcover ? hardcoverBlockers(book.trimSize, storyPages) : []
+  const needsAck = isHardcover && storyPages + 2 < HARDCOVER_MIN_PAGES
+  // The acknowledgement is tied to the page count it was given for, so it has
+  // to be given again if the story changes length.
+  const [ackForPages, setAckForPages] = useState<number | null>(null)
+  const ackBlanks = ackForPages === storyPages
+  const exportBlocked =
+    storyPages === 0 || blockers.length > 0 || (needsAck && !ackBlanks)
+  const coverBox = coverWrapBoxIn(trim, finalPages, binding, book.hardcoverSpineIn)
+  const spineShown = (pageCount: number) =>
+    coverWrapBoxIn(trim, pageCount, binding, book.hardcoverSpineIn).spine
+
   const showCoverTitle = book.showCoverTitle !== false
   const showCoverAuthor = book.showCoverAuthor !== false
 
@@ -88,6 +116,16 @@ export function PublishPhase({ book }: { book: Book }) {
       toast.error('Split your story into pages first.')
       return
     }
+    if (blockers.length) {
+      toast.error(blockers[0])
+      return
+    }
+    if (needsAck && !ackBlanks) {
+      toast.error(
+        `Please confirm the ${blanksAdded} blank pages first — KDP hardcovers need ${HARDCOVER_MIN_PAGES} pages.`
+      )
+      return
+    }
     setBusy(true)
     setProgress({ done: 0, total: 1, label: 'Getting things ready…' })
     try {
@@ -130,8 +168,8 @@ export function PublishPhase({ book }: { book: Book }) {
       <section className="rounded-2xl border border-border bg-surface p-5">
         <h2 className="font-display text-xl font-semibold">Print-ready files</h2>
         <p className="mt-1 text-sm text-muted">
-          Two PDFs sized to Amazon KDP paperback specs — an interior file and a
-          full-wrap cover.
+          Two PDFs sized to Amazon KDP {bindingLabel} specs — an interior file
+          and a full-wrap cover.
         </p>
 
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -139,8 +177,8 @@ export function PublishPhase({ book }: { book: Book }) {
           <Info label="Story pages" value={String(pages.length)} />
           <Info label="Illustrated" value={`${illustrated}/${pages.length}`} />
           <Info
-            label="Spine (approx.)"
-            value={`${spineWidthIn(Math.max(24, pages.length + 2)).toFixed(3)}"`}
+            label={isHardcover && book.hardcoverSpineIn ? 'Spine (from KDP)' : 'Spine (approx.)'}
+            value={`${spineShown(finalPages).toFixed(3)}"`}
           />
         </dl>
 
@@ -259,13 +297,42 @@ export function PublishPhase({ book }: { book: Book }) {
           </fieldset>
         </div>
 
+        <BindingPicker
+          key={book.id}
+          book={book}
+          storyPages={storyPages}
+          finalPages={finalPages}
+          blanksAdded={blanksAdded}
+          blockers={blockers}
+          needsAck={needsAck}
+          ack={ackBlanks}
+          onAck={(v) => setAckForPages(v ? storyPages : null)}
+          spineEstimateIn={spineWidthIn(finalPages)}
+          coverSizeIn={{ w: coverBox.w, h: coverBox.h }}
+          onBindingChange={() => {
+            setResult(null)
+            setAckForPages(null)
+          }}
+        />
+
         <button
           onClick={runExport}
-          disabled={busy}
+          disabled={busy || exportBlocked}
           className="mt-4 w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg disabled:opacity-60"
         >
-          {busy ? 'Building PDFs…' : 'Generate print files'}
+          {busy
+            ? 'Building PDFs…'
+            : isHardcover
+              ? 'Generate hardcover print files'
+              : 'Generate print files'}
         </button>
+        {!busy && exportBlocked && storyPages > 0 && (
+          <p className="mt-2 text-xs text-[color:var(--warn)]">
+            {blockers.length
+              ? 'Fix the hardcover problem above to generate files.'
+              : 'Tick the blank-pages box above to generate your hardcover files.'}
+          </p>
+        )}
 
         {busy && progress && (
           <div className="mt-4" aria-live="polite">
@@ -298,8 +365,9 @@ export function PublishPhase({ book }: { book: Book }) {
           <div className="mt-4 space-y-3">
             <div className="rounded-xl bg-surface-2 p-3 text-sm">
               <p className="font-semibold">
-                Interior is {result.pageCount} pages · spine{' '}
-                {spineWidthIn(result.pageCount).toFixed(3)}&quot;
+                {isHardcover ? 'Hardcover' : 'Paperback'} · interior is{' '}
+                {result.pageCount} pages · spine{' '}
+                {spineShown(result.pageCount).toFixed(3)}&quot;
               </p>
               {result.missingImages > 0 && (
                 <p className="mt-1 text-xs text-[color:var(--warn)]">
@@ -311,14 +379,14 @@ export function PublishPhase({ book }: { book: Book }) {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() =>
-                  downloadPdf(result.interior, `${stem}-interior.pdf`)
+                  downloadPdf(result.interior, `${stem}-${bindingLabel}-interior.pdf`)
                 }
                 className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold hover:bg-surface-2"
               >
                 ↓ Interior PDF
               </button>
               <button
-                onClick={() => downloadPdf(result.cover, `${stem}-cover.pdf`)}
+                onClick={() => downloadPdf(result.cover, `${stem}-${bindingLabel}-cover.pdf`)}
                 className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold hover:bg-surface-2"
               >
                 ↓ Cover PDF
@@ -339,11 +407,19 @@ export function PublishPhase({ book }: { book: Book }) {
         <h2 className="font-display text-xl font-semibold">Upload to KDP</h2>
         <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-muted">
           <li>Download both PDFs above.</li>
-          <li>Open your KDP Bookshelf and start a new paperback.</li>
+          <li>Open your KDP Bookshelf and start a new {bindingLabel}.</li>
           <li>
             Set the trim size to <strong>{trim.label}</strong> with bleed and
             white paper.
           </li>
+          {isHardcover && (
+            <li>
+              If this book is already on KDP as a paperback, add the hardcover
+              from that book&apos;s row (&ldquo;+ Create hardcover&rdquo;) so the
+              two formats stay linked. The hardcover needs its own ISBN, which KDP
+              can give you for free.
+            </li>
+          )}
           <li>Upload the interior file, then the cover file.</li>
           <li>Use KDP&apos;s previewer to confirm, then publish.</li>
         </ol>

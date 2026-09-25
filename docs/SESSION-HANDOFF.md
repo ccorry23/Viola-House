@@ -26,6 +26,22 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Hardcover option** (Publish tab → *Binding*: Paperback / Hardcover). Stored
+  per book as `book.binding` (+ optional `book.hardcoverSpineIn`). KDP hardcover
+  rules live in `lib/kdp/constants.ts` (`HARDCOVER_*`, `hardcoverBlockers`,
+  `paddedPageCount`): **75–550 pages, 7″×10″ only** (of our sizes), white paper,
+  case laminate. Cover file wraps **0.51″** past each outer trim (vs 0.125″ bleed)
+  and text/barcode stay **0.4″** clear of the spine hinge; front art is now sized
+  to the cover's own front panel inside `cover.ts`. Safeguards: requirements box
+  up front; **hard stops** (wrong trim, >550 pages) disable the button and are
+  re-checked in `exportBook`; books under 75 pages get padded with blanks only
+  after the author ticks "I understand N blank pages will be added" (re-asked if
+  the page count changes); Pages tab warns when a hardcover book is short. Spine
+  width: we couldn't verify KDP's hardcover formula, so the author pastes it from
+  KDP's cover calculator (estimate used until then; the full cover size is shown
+  to cross-check). Files download as `…-hardcover-interior.pdf` / `-cover.pdf`.
+  Verified with headless renders: 7×10 @76 pages → 15.52″×11.02″ cover, text
+  clear of hinge + wrap; paperback geometry unchanged.
 - **Back cover image is now FULL-BLEED with layered text** (`cover.ts`): when a
   back-cover image is set, it fills the whole back panel and the blurb is layered
   over it using the same treatment as the interior pages — a soft scrim baked into

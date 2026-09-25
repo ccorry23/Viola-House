@@ -7,9 +7,11 @@ import {
   SAFE_MARGIN_IN,
   PT_PER_INCH,
   PRINT_DPI,
+  TOP_ART_INSET_IN,
+  HARDCOVER_HINGE_IN,
   TRIM_SIZES,
   coverWrapBoxIn,
-  spineWidthIn,
+  type BindingId,
   type TrimId,
 } from '@/lib/kdp/constants'
 import { loadPdfFonts } from './fonts'
@@ -40,10 +42,13 @@ export interface BuildCoverInput {
   trimSize: TrimId
   /** Interior page count — drives spine width. */
   pageCount: number
-  /** Front cover art (upscaled JPEG), or null for a plain colored cover. */
-  frontImageBytes: Uint8Array | null
-  /** Brightness/colour of the cover art where the title sits, for the scrim. */
-  frontBand?: BandStats
+  /** Front cover art (the cover image or page 1's art), or null for a plain
+   *  colored cover. Sized to the front panel here, so it fits either binding. */
+  frontImageBlob?: Blob | null
+  /** Paperback (0.125" bleed) or hardcover (0.51" board wrap + 0.4" hinge). */
+  binding?: BindingId
+  /** Hardcover only: exact spine width (inches) from KDP's cover calculator. */
+  spineOverrideIn?: number
   /** Author's chosen body font; used for the byline so it matches the interior. */
   bodyFont?: BodyFontId
   /** Back-cover blurb/description. Printed on the back cover when present. */
@@ -54,10 +59,12 @@ export interface BuildCoverInput {
 }
 
 /**
- * Build the KDP full-wrap paperback cover: back cover + spine + front cover on
- * a single page, with 0.125" bleed all around and a spine sized from the page
- * count (white paper = 0.002252"/page). Spine text is only added at ≥100 pages,
- * per KDP's rule.
+ * Build the KDP full-wrap cover: back cover + spine + front cover on a single
+ * page. Paperback: 0.125" bleed all around, spine from the page count (white
+ * paper = 0.002252"/page). Hardcover (case laminate): the image extends 0.51"
+ * past each outer trim edge to wrap the boards, text stays 0.4" clear of the
+ * spine hinge, and the spine can be set from KDP's cover calculator. Spine text
+ * is only added at ≥100 pages.
  */
 export async function buildCoverPdf({
   title,
@@ -66,20 +73,27 @@ export async function buildCoverPdf({
   showAuthor = true,
   trimSize,
   pageCount,
-  frontImageBytes,
-  frontBand,
+  frontImageBlob,
   bodyFont,
   blurb,
   backImageBlob,
+  binding = 'paperback',
+  spineOverrideIn,
 }: BuildCoverInput): Promise<Uint8Array> {
   const trim = TRIM_SIZES[trimSize]
-  const wrap = coverWrapBoxIn(trim, pageCount)
+  const wrap = coverWrapBoxIn(trim, pageCount, binding, spineOverrideIn)
   const wPt = wrap.w * PT_PER_INCH
   const hPt = wrap.h * PT_PER_INCH
-  const bleedPt = BLEED_IN * PT_PER_INCH
+  // Outer margin past the trim: bleed (paperback) or board wrap (hardcover).
+  const outerPt = wrap.outer * PT_PER_INCH
   const trimWPt = trim.w * PT_PER_INCH
-  const spinePt = spineWidthIn(pageCount) * PT_PER_INCH
+  const spinePt = wrap.spine * PT_PER_INCH
   const inset = SAFE_MARGIN_IN * PT_PER_INCH
+  // Keep text clear of the spine side: the safe margin, or the hardcover hinge.
+  const spineClear =
+    binding === 'hardcover'
+      ? Math.max(inset, HARDCOVER_HINGE_IN * PT_PER_INCH)
+      : inset
 
   const doc = await PDFDocument.create()
   doc.registerFontkit(fontkit)
@@ -90,10 +104,10 @@ export async function buildCoverPdf({
   const page = doc.addPage([wPt, hPt])
 
   // Region boundaries (left → right): back | spine | front.
-  const backW = bleedPt + trimWPt
+  const backW = outerPt + trimWPt
   const spineX = backW
   const frontX = backW + spinePt
-  const frontW = trimWPt + bleedPt
+  const frontW = trimWPt + outerPt
 
   // --- Back cover ---------------------------------------------------------
   // With an illustration: it fills the back cover full-bleed and the blurb is
@@ -103,10 +117,10 @@ export async function buildCoverPdf({
   // Either way the blurb sits ABOVE a clear ~1.6" bottom strip reserved for the
   // barcode KDP auto-adds to the back cover.
   const BARCODE_RESERVE_IN = 1.6
-  const backColLeft = bleedPt + inset
-  const backColW = backW - inset - backColLeft
-  const backTopY = hPt - bleedPt - inset
-  const backTextBottom = bleedPt + BARCODE_RESERVE_IN * PT_PER_INCH
+  const backColLeft = outerPt + inset
+  const backColW = backW - spineClear - backColLeft
+  const backTopY = hPt - outerPt - inset
+  const backTextBottom = outerPt + BARCODE_RESERVE_IN * PT_PER_INCH
   const hasBlurb = Boolean(blurb?.trim())
 
   // Wrap the blurb (honouring line breaks; a blank line is a paragraph gap) and
@@ -153,8 +167,8 @@ export async function buildCoverPdf({
       page.drawImage(img, { x: 0, y: 0, width: backW, height: hPt })
       drawBandText({
         page,
-        x: 0,
-        width: backW,
+        x: backColLeft,
+        width: backColW,
         lines: backLines,
         size: backSize,
         lineH: backLineH,
@@ -187,6 +201,29 @@ export async function buildCoverPdf({
     }
   }
 
+  // Front art: cover-fit to the front panel (so it fits either binding's panel
+  // shape), with the top art inset measured from the TRIM rather than the file
+  // edge — otherwise hardcover art would be pushed into the board wrap.
+  let frontImageBytes: Uint8Array | null = null
+  let frontBand: BandStats | undefined
+  if (frontImageBlob) {
+    const fwPx = Math.round((frontW / PT_PER_INCH) * PRINT_DPI)
+    const fhPx = Math.round((hPt / PT_PER_INCH) * PRINT_DPI)
+    const topInsetIn = wrap.outer + (TOP_ART_INSET_IN - BLEED_IN)
+    const up = await upscaleToImage(
+      frontImageBlob,
+      fwPx,
+      fhPx,
+      Math.round(topInsetIn * PRINT_DPI)
+    )
+    frontImageBytes = up.jpg
+    frontBand = up.band
+  }
+
+  // Front text column: inside the trim safe area, clear of the spine/hinge.
+  const frontSafeLeft = frontX + spineClear
+  const frontSafeW = wPt - outerPt - inset - frontSafeLeft
+
   // Front title and/or author (bottom of the front cover, inside the trim safe
   // area). Each is independently optional — turning one off is useful when the
   // cover art already has that text printed on it. Computed BEFORE the front
@@ -206,10 +243,8 @@ export async function buildCoverPdf({
   } | null = null
 
   if (wantTitle || wantAuthor) {
-    const safeLeft = frontX + inset
-    const safeRight = wPt - bleedPt - inset
-    const maxW = safeRight - safeLeft
-    const textBottom = inset + bleedPt + 6
+    const maxW = frontSafeW
+    const textBottom = inset + outerPt + 6
 
     // The title is the main (largest) text; the byline is a smaller line under
     // it. With the title hidden, the byline becomes the main line instead.
@@ -281,8 +316,8 @@ export async function buildCoverPdf({
     if (titlePlan.style) {
       drawBandText({
         page,
-        x: frontX,
-        width: frontW,
+        x: frontSafeLeft,
+        width: frontSafeW,
         lines: titlePlan.mainLines,
         size: titlePlan.mainSize,
         lineH: titlePlan.lineH,
@@ -303,7 +338,7 @@ export async function buildCoverPdf({
       for (const line of mainLines) {
         const lw = mainFont.widthOfTextAtSize(line, mainSize)
         page.drawText(line, {
-          x: frontX + (frontW - lw) / 2,
+          x: frontSafeLeft + (frontSafeW - lw) / 2,
           y: ty,
           size: mainSize,
           font: mainFont,
@@ -315,7 +350,7 @@ export async function buildCoverPdf({
       for (const ex of extraLines) {
         const lw = ex.font.widthOfTextAtSize(ex.text, ex.size)
         page.drawText(ex.text, {
-          x: frontX + (frontW - lw) / 2,
+          x: frontSafeLeft + (frontSafeW - lw) / 2,
           y: ty,
           size: ex.size,
           font: ex.font,
@@ -334,7 +369,7 @@ export async function buildCoverPdf({
     const nw = body.widthOfTextAtSize(note, s)
     page.drawText(note, {
       x: (backW - nw) / 2,
-      y: inset + bleedPt,
+      y: inset + outerPt,
       size: s,
       font: body,
       color: rgb(0.5, 0.42, 0.46),
