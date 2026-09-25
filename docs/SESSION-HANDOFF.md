@@ -26,6 +26,15 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Back cover image is now FULL-BLEED with layered text** (`cover.ts`): when a
+  back-cover image is set, it fills the whole back panel and the blurb is layered
+  over it using the same treatment as the interior pages — a soft scrim baked into
+  the art pixels (KDP-safe, opaque, adaptive light/dark) + halo text — instead of
+  the old small vignette on a coloured panel. Blurb stays above the ~1.6" barcode
+  strip; no image ⇒ plain coloured panel with centred blurb (unchanged). Cover
+  builder now takes `backImageBlob` (raw Blob) and cover-fits + bakes it itself
+  (reuses `upscaleToImage`/`computeBandStyle`/`bakeScrim`/`drawBandText`). Verified
+  with a real headless cover render.
 - **Amazon A+ marketing image generator** (spec #2, v1) — `MarketingSlide` on the
   Publish tab + `lib/marketing/slide.ts` (canvas renderer). Produces a **1940×600**
   A+ "Image & Text Overlay" banner in two layouts (**text over picture** /
