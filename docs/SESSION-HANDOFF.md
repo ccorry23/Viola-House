@@ -26,6 +26,18 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Amazon A+ marketing image generator** (spec #2, v1) — `MarketingSlide` on the
+  Publish tab + `lib/marketing/slide.ts` (canvas renderer). Produces a **1940×600**
+  A+ "Image & Text Overlay" banner in two layouts (**text over picture** /
+  **text beside picture**) from a chosen illustration (cover/page/upload) + a
+  headline and up to 3 benefit lines. Live preview, **Download** (JPEG ~0.92,
+  well under A+'s 3 MB), and an **"✨ Suggest from my story"** button (new
+  `benefits` write mode — content-safe: no pricing/time-sensitive words per A+
+  rules). Verified both layouts with a real headless render. Uses the "VH
+  Fraunces"/"VH Nunito" @font-face families for canvas text.
+  _Still open from the spec: 600×600 trio tiles (#2b), the back-cover-style
+  marketing slide (#3), and the batch/zip export (#4). Destination is A+ Content's
+  "From the Publisher" section — KDP has no self-serve image carousel._
 - **AI "Write it for me" for the back cover** (new `backcover` write mode +
   `MARKETER_SYSTEM`): a button by the Publish-tab "Back cover description" box
   generates a warm hook plus a short **"Along the way, children learn to:"**

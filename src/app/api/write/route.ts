@@ -22,6 +22,7 @@ const MODES: WriteMode[] = [
   'subtitle',
   'keywords',
   'backcover',
+  'benefits',
 ]
 
 export interface Idea {
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
     'subtitle',
     'keywords',
     'backcover',
+    'benefits',
   ]
   if (NEEDS_MANUSCRIPT.includes(body.mode) && !body.manuscript?.trim()) {
     return NextResponse.json(

@@ -19,6 +19,7 @@ import { cn } from '@/lib/cn'
 import { callWrite } from '@/lib/ai/writeClient'
 import { ListingHelper } from './ListingHelper'
 import { BackCoverImagePicker } from './BackCoverImagePicker'
+import { MarketingSlide } from './MarketingSlide'
 
 const KDP_BOOKSHELF = 'https://kdp.amazon.com/en_US/bookshelf'
 
@@ -329,6 +330,9 @@ export function PublishPhase({ book }: { book: Book }) {
 
       {/* Amazon listing helper */}
       <ListingHelper book={book} />
+
+      {/* Amazon A+ marketing image */}
+      <MarketingSlide book={book} />
 
       {/* KDP handoff */}
       <section className="rounded-2xl border border-border bg-surface p-5">
