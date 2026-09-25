@@ -30,6 +30,12 @@ export interface BandStyle {
   scrimTop: number
   /** Extra spacing between the main lines and any extra (byline) lines. */
   gap: number
+  /**
+   * Optional: fade the scrim back OUT below the text instead of darkening all
+   * the way to the page bottom (PDF y, from page bottom). Used when the text
+   * sits mid-page, e.g. the back cover blurb above the barcode strip.
+   */
+  fadeOut?: { plateauEnd: number; end: number }
 }
 
 /**
@@ -102,13 +108,28 @@ export async function bakeScrim(
   const { r, g, b } = style.scrim
   const col = `${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)}`
 
-  const grad = ctx.createLinearGradient(0, scrimTopY, 0, c.height)
-  grad.addColorStop(0, `rgba(${col},0)`)
-  const midStop = Math.max(0, Math.min(1, (textTopY - scrimTopY) / (c.height - scrimTopY)))
-  grad.addColorStop(midStop, `rgba(${col},${style.plateauBlend})`)
-  grad.addColorStop(1, `rgba(${col},${style.maxBlend})`)
-  ctx.fillStyle = grad
-  ctx.fillRect(0, scrimTopY, c.width, c.height - scrimTopY)
+  const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
+  if (style.fadeOut) {
+    // A pool behind the text only: fade in above, hold, fade out below.
+    const endY = Math.min(c.height, c.height - style.fadeOut.end * scale)
+    const plateauEndY = c.height - style.fadeOut.plateauEnd * scale
+    const span = endY - scrimTopY
+    const grad = ctx.createLinearGradient(0, scrimTopY, 0, endY)
+    grad.addColorStop(0, `rgba(${col},0)`)
+    grad.addColorStop(clamp01((textTopY - scrimTopY) / span), `rgba(${col},${style.plateauBlend})`)
+    grad.addColorStop(clamp01((plateauEndY - scrimTopY) / span), `rgba(${col},${style.plateauBlend})`)
+    grad.addColorStop(1, `rgba(${col},0)`)
+    ctx.fillStyle = grad
+    ctx.fillRect(0, scrimTopY, c.width, span)
+  } else {
+    const grad = ctx.createLinearGradient(0, scrimTopY, 0, c.height)
+    grad.addColorStop(0, `rgba(${col},0)`)
+    const midStop = clamp01((textTopY - scrimTopY) / (c.height - scrimTopY))
+    grad.addColorStop(midStop, `rgba(${col},${style.plateauBlend})`)
+    grad.addColorStop(1, `rgba(${col},${style.maxBlend})`)
+    ctx.fillStyle = grad
+    ctx.fillRect(0, scrimTopY, c.width, c.height - scrimTopY)
+  }
 
   const out = await new Promise<Blob | null>((res) => c.toBlob(res, 'image/jpeg', 0.9))
   if (!out) throw new Error('Scrim composite failed')

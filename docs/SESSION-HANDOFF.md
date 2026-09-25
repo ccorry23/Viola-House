@@ -26,6 +26,12 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Lighter back-cover shading**: the scrim behind the blurb on an illustrated
+  back cover is now a *pool* — it fades in above the text, holds behind it, and
+  fades back out below the last line (`BandStyle.fadeOut` in `textband.ts`), so
+  the bottom of the art (the barcode strip) is no longer darkened. The pool is
+  also a bit lighter than interior pages (plateau capped at 0.6). Text can't move
+  lower — the bottom 1.6" is reserved for KDP's barcode. Interior pages unchanged.
 - **Hardcover option** (Publish tab → *Binding*: Paperback / Hardcover). Stored
   per book as `book.binding` (+ optional `book.hardcoverSpineIn`). KDP hardcover
   rules live in `lib/kdp/constants.ts` (`HARDCOVER_*`, `hardcoverBlockers`,
