@@ -26,6 +26,13 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Amazon listing helper now saves its results** (`ListingHelper.tsx`): the
+  description, subtitles and keywords are stored on the book (`book.listing`,
+  merged per part via `patchListing` in `dexie.ts`), so they're still there after
+  leaving the page. Each is editable in place (description textarea, subtitle and
+  keyword inputs with a live x/50 counter; edits save on blur), and the button
+  becomes **↻ Redo**, which asks before replacing saved/edited copy. Local-only
+  like `blurb` (not part of the Supabase sync payload).
 - **Story-page shading back to its original strength**: on pages with darker
   art, the pool behind the white story text is back to the pre-Sep-11 level
   (blend 0.8, plateau ×0.72) — the author found the denser pool made the

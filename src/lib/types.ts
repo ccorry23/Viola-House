@@ -52,6 +52,14 @@ export interface CastMember {
   imageHistory?: Blob[]
 }
 
+/** Amazon listing copy from the Publish tab's listing helper. Each part is
+ *  saved when generated and can be edited or regenerated. */
+export interface ListingCopy {
+  description?: string
+  subtitles?: string[]
+  keywords?: { keyword: string; why: string }[]
+}
+
 export interface Book {
   id: string
   title: string
@@ -63,6 +71,8 @@ export interface Book {
    * time. Optional; the back cover stays plain when empty.
    */
   blurb?: string
+  /** Amazon listing copy saved from the listing helper (editable). */
+  listing?: ListingCopy
   /**
    * Optional illustration for the back cover (picked from the book's art or
    * uploaded). Printed above the blurb. Local-only Blob, like the cover art.

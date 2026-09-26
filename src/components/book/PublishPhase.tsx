@@ -397,7 +397,7 @@ export function PublishPhase({ book }: { book: Book }) {
       </section>
 
       {/* Amazon listing helper */}
-      <ListingHelper book={book} />
+      <ListingHelper key={book.id} book={book} />
 
       {/* Amazon A+ marketing image */}
       <MarketingSlide book={book} />
