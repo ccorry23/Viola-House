@@ -1,7 +1,7 @@
 'use client'
 
 import Dexie, { type EntityTable } from 'dexie'
-import type { Book, CastMember, Page } from '../types'
+import type { Book, CastMember, ListingCopy, Page } from '../types'
 
 /**
  * Local-first store. This IndexedDB database is the app's source of truth and
@@ -55,6 +55,22 @@ export async function patchBook(
     const updated: Book = { ...existing, ...patch, id, updatedAt: Date.now() }
     await db.books.put(updated)
     return updated
+  })
+}
+
+/** Save one part of the listing copy, merged with what's already stored. */
+export async function patchListing(
+  id: string,
+  part: Partial<ListingCopy>
+): Promise<void> {
+  await db.transaction('rw', db.books, async () => {
+    const existing = await db.books.get(id)
+    if (!existing) return
+    await db.books.put({
+      ...existing,
+      listing: { ...existing.listing, ...part },
+      updatedAt: Date.now(),
+    })
   })
 }
 

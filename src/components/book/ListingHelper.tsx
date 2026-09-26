@@ -9,23 +9,36 @@ import {
   type KeywordItem,
 } from '@/lib/ai/writeClient'
 import { useOnline } from '@/lib/hooks/useOnline'
-import { patchBook } from '@/lib/db/dexie'
-import type { Book } from '@/lib/types'
+import { patchBook, patchListing } from '@/lib/db/dexie'
+import type { Book, ListingCopy } from '@/lib/types'
 
 type Tool = 'description' | 'subtitle' | 'keywords'
 
 /**
  * Ready-to-paste Amazon/KDP listing copy generated from the story: a product
- * description, subtitle options, and search keywords. Read-only output with
- * Copy buttons — it never touches the manuscript. Lives on the Publish tab.
+ * description, subtitle options, and search keywords. Each result is saved on
+ * the book (so it's still there next visit), can be edited in place, and can
+ * be redone. It never touches the manuscript. Lives on the Publish tab.
  */
 export function ListingHelper({ book }: { book: Book }) {
   const online = useOnline()
   const [available, setAvailable] = useState<boolean | null>(null)
   const [loading, setLoading] = useState<Tool | null>(null)
-  const [description, setDescription] = useState<string | null>(null)
-  const [subtitles, setSubtitles] = useState<string[] | null>(null)
-  const [keywords, setKeywords] = useState<KeywordItem[] | null>(null)
+  // Start from what was saved last time (remounted per book via `key`).
+  const [description, setDescription] = useState<string | null>(
+    book.listing?.description ?? null
+  )
+  const [subtitles, setSubtitles] = useState<string[] | null>(
+    book.listing?.subtitles?.length ? book.listing.subtitles : null
+  )
+  const [keywords, setKeywords] = useState<KeywordItem[] | null>(
+    book.listing?.keywords?.length ? book.listing.keywords : null
+  )
+
+  /** Save one part of the listing copy onto the book. */
+  function save(part: Partial<ListingCopy>) {
+    patchListing(book.id, part)
+  }
 
   useEffect(() => {
     checkWritingAvailability().then(setAvailable)
@@ -34,7 +47,16 @@ export function ListingHelper({ book }: { book: Book }) {
   const manuscript = book.manuscriptText.trim()
   const ready = available === true && online && manuscript.length > 0
 
+  const REDO_WARNING: Record<Tool, string> = {
+    description: 'Write a new description? This replaces the saved one, including your edits.',
+    subtitle: 'Suggest new subtitles? This replaces the saved ones, including your edits.',
+    keywords: 'Suggest new keywords? This replaces the saved ones, including your edits.',
+  }
+
   async function generate(tool: Tool) {
+    const has =
+      tool === 'description' ? Boolean(description) : tool === 'subtitle' ? Boolean(subtitles) : Boolean(keywords)
+    if (has && !window.confirm(REDO_WARNING[tool])) return
     setLoading(tool)
     try {
       const res = await callWrite({
@@ -44,14 +66,21 @@ export function ListingHelper({ book }: { book: Book }) {
         manuscript,
       })
       if (tool === 'description') {
-        if (res.text) setDescription(res.text.trim())
-        else toast('Nothing came back — try again.')
+        if (res.text) {
+          const text = res.text.trim()
+          setDescription(text)
+          save({ description: text })
+        } else toast('Nothing came back — try again.')
       } else if (tool === 'subtitle') {
-        if (res.items?.length) setSubtitles(res.items)
-        else toast('Nothing came back — try again.')
+        if (res.items?.length) {
+          setSubtitles(res.items)
+          save({ subtitles: res.items })
+        } else toast('Nothing came back — try again.')
       } else {
-        if (res.keywords?.length) setKeywords(res.keywords)
-        else toast('Nothing came back — try again.')
+        if (res.keywords?.length) {
+          setKeywords(res.keywords)
+          save({ keywords: res.keywords })
+        } else toast('Nothing came back — try again.')
       }
     } catch (e) {
       if (e instanceof WriteError && e.code === 'no_key') setAvailable(false)
@@ -72,7 +101,7 @@ export function ListingHelper({ book }: { book: Book }) {
       disabled={!ready || loading !== null}
       className="shrink-0 rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
     >
-      {loading === tool ? 'Writing…' : has ? 'Again' : idleLabel}
+      {loading === tool ? 'Writing…' : has ? '↻ Redo' : idleLabel}
     </button>
   )
 
@@ -81,7 +110,8 @@ export function ListingHelper({ book }: { book: Book }) {
       <h2 className="font-display text-xl font-semibold">Amazon listing helper</h2>
       <p className="mt-1 text-sm text-muted">
         Ready-to-paste copy for your book’s Amazon page — a description, a
-        subtitle, and search keywords, all written from your story.
+        subtitle, and search keywords, all written from your story. What you
+        generate is saved with the book — tap any of it to edit.
       </p>
 
       {available === false && (
@@ -108,9 +138,14 @@ export function ListingHelper({ book }: { book: Book }) {
         </div>
         {description && (
           <div className="mt-2">
-            <div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-xl border border-border bg-background p-3 text-[15px] leading-relaxed">
-              {description}
-            </div>
+            <textarea
+              aria-label="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onBlur={() => save({ description })}
+              rows={10}
+              className="block w-full resize-y rounded-xl border border-border bg-background p-3 text-[15px] leading-relaxed outline-none focus:border-accent"
+            />
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
                 onClick={() => copy(description, 'Description copied')}
@@ -152,9 +187,17 @@ export function ListingHelper({ book }: { book: Book }) {
             {subtitles.map((s, i) => (
               <li
                 key={i}
-                className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-accent"
               >
-                <span className="text-sm">{s}</span>
+                <input
+                  aria-label={`Subtitle ${i + 1}`}
+                  value={s}
+                  onChange={(e) =>
+                    setSubtitles(subtitles.map((x, j) => (j === i ? e.target.value : x)))
+                  }
+                  onBlur={() => save({ subtitles })}
+                  className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+                />
                 <button
                   onClick={() => copy(s, 'Subtitle copied')}
                   className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-semibold hover:bg-surface-2"
@@ -185,13 +228,34 @@ export function ListingHelper({ book }: { book: Book }) {
               {keywords.map((k, i) => (
                 <li
                   key={i}
-                  className="flex items-start justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2"
+                  className="flex items-start justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-accent"
                 >
-                  <div className="min-w-0">
-                    <p className="text-sm">
-                      <span className="mr-2 text-muted">{i + 1}.</span>
-                      {k.keyword}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted">{i + 1}.</span>
+                      <input
+                        aria-label={`Keyword ${i + 1}`}
+                        value={k.keyword}
+                        onChange={(e) =>
+                          setKeywords(
+                            keywords.map((x, j) =>
+                              j === i ? { ...x, keyword: e.target.value } : x
+                            )
+                          )
+                        }
+                        onBlur={() => save({ keywords })}
+                        className="min-w-0 flex-1 bg-transparent outline-none"
+                      />
+                      <span
+                        className={
+                          k.keyword.length > 50
+                            ? 'shrink-0 text-xs font-semibold text-red-600'
+                            : 'shrink-0 text-xs text-muted'
+                        }
+                      >
+                        {k.keyword.length}/50
+                      </span>
+                    </div>
                     {k.why && (
                       <p className="mt-0.5 text-xs text-muted">→ {k.why}</p>
                     )}
