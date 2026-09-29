@@ -15,6 +15,12 @@ export const BLEED_IN = 0.125
 /** Keep text/important content this far inside the trim edge. */
 export const SAFE_MARGIN_IN = 0.25
 /**
+ * Cover text safe zone, inside the TRIM edge. KDP's cover check asks for text
+ * at least 0.375" from the edges; measuring from the trim (not the file edge)
+ * satisfies that whichever edge they mean, with room for the text outline.
+ */
+export const COVER_TEXT_SAFE_IN = 0.375
+/**
  * How far to push illustration content down from the top of every page and the
  * cover, so nothing sits right against the top trim. The art is nudged down by
  * this much and the freed top strip is filled with colour bled up from the art,

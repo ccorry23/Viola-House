@@ -181,14 +181,17 @@ export function drawBandText(opts: {
     page.drawText(text, { x: lx, y: ty, size: rSize, font: rFont, color: textColor })
   }
 
-  let ty = textTop - size
+  // Each row is a lineH-tall box with its baseline one font size below the box
+  // top. (A small byline under a big title must use ITS size here — using the
+  // title's size dropped the byline below the band, toward the cover edge.)
+  let boxTop = textTop
   for (const line of lines) {
-    drawRow(line, size, font, ty)
-    ty -= lineH
+    drawRow(line, size, font, boxTop - size)
+    boxTop -= lineH
   }
-  ty -= gap
+  boxTop -= gap
   for (const ex of extraLines) {
-    drawRow(ex.text, ex.size, ex.font, ty)
-    ty -= ex.lineH
+    drawRow(ex.text, ex.size, ex.font, boxTop - ex.size)
+    boxTop -= ex.lineH
   }
 }

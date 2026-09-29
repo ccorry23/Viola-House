@@ -4,7 +4,7 @@ import { PDFDocument, rgb, degrees } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import {
   BLEED_IN,
-  SAFE_MARGIN_IN,
+  COVER_TEXT_SAFE_IN,
   PT_PER_INCH,
   PRINT_DPI,
   TOP_ART_INSET_IN,
@@ -88,7 +88,8 @@ export async function buildCoverPdf({
   const outerPt = wrap.outer * PT_PER_INCH
   const trimWPt = trim.w * PT_PER_INCH
   const spinePt = wrap.spine * PT_PER_INCH
-  const inset = SAFE_MARGIN_IN * PT_PER_INCH
+  // Cover text stays this far inside the trim on every side (KDP safe zone).
+  const inset = COVER_TEXT_SAFE_IN * PT_PER_INCH
   // Keep text clear of the spine side: the safe margin, or the hardcover hinge.
   const spineClear =
     binding === 'hardcover'
@@ -346,29 +347,31 @@ export async function buildCoverPdf({
         mainLines.length * lineH +
         gap +
         extraLines.reduce((s, l) => s + l.lineH, 0)
-      let ty = textBottom + total - mainSize
+      // Each row is a lineH-tall box with its baseline one font size below the
+      // box top — so a small byline sits in its own (smaller) box.
+      let boxTop = textBottom + total
       for (const line of mainLines) {
         const lw = mainFont.widthOfTextAtSize(line, mainSize)
         page.drawText(line, {
           x: frontSafeLeft + (frontSafeW - lw) / 2,
-          y: ty,
+          y: boxTop - mainSize,
           size: mainSize,
           font: mainFont,
           color: INK,
         })
-        ty -= lineH
+        boxTop -= lineH
       }
-      ty -= gap
+      boxTop -= gap
       for (const ex of extraLines) {
         const lw = ex.font.widthOfTextAtSize(ex.text, ex.size)
         page.drawText(ex.text, {
           x: frontSafeLeft + (frontSafeW - lw) / 2,
-          y: ty,
+          y: boxTop - ex.size,
           size: ex.size,
           font: ex.font,
           color: INK,
         })
-        ty -= ex.lineH
+        boxTop -= ex.lineH
       }
     }
   }

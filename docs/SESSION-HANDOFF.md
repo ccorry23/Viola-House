@@ -26,6 +26,13 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **KDP cover rejection fix ("text too close to the edges", needs ≥0.375")**:
+  (1) byline bug — `drawBandText` (and the plain-cover branch + eBook cover)
+  placed a small line under a big title using the *title's* size, dropping the
+  author name ~¼" low (Rosie's was 0.18" from the edge). Rows now use their own
+  size. (2) Cover text safe zone widened to `COVER_TEXT_SAFE_IN` = 0.375"
+  inside the TRIM (was 0.25"), so the outline halo can't cross 0.375" whichever
+  edge KDP measures. Re-rendered Rosie: all text ≥0.55" from the file edge.
 - **Back cover picture moved to the Illustrate tab**, as its own card right
   under the front-cover card (`BackCoverImagePicker` now renders a full card).
   The Publish tab keeps the back-cover *description* and shows a link
