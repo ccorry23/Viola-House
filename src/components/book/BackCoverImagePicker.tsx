@@ -8,7 +8,8 @@ import type { Book } from '@/lib/types'
 /**
  * Choose an optional back-cover illustration: pick one of the book's existing
  * pictures (cover art or any page), or upload your own. Stored on the book as
- * `backCoverImage` and printed above the blurb on the back cover.
+ * `backCoverImage`; it fills the printed back cover with the back-cover
+ * description layered over it. Lives on the Illustrate tab, under the cover.
  */
 export function BackCoverImagePicker({ book }: { book: Book }) {
   const pages = useLiveQuery(() => getPages(book.id), [book.id]) ?? []
@@ -23,12 +24,17 @@ export function BackCoverImagePicker({ book }: { book: Book }) {
   }
 
   return (
-    <div className="mt-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-muted">
-          Back cover image (optional)
-        </span>
-        <label className="cursor-pointer rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold hover:bg-surface-2">
+    <section className="mt-4 rounded-2xl border border-border bg-surface p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold">Back cover picture (optional)</h3>
+          <p className="mt-0.5 text-xs text-muted">
+            Fills the back of the printed book, with your back cover description
+            (Publish tab) layered over it. Pick one of your pictures or upload
+            your own.
+          </p>
+        </div>
+        <label className="shrink-0 cursor-pointer rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold hover:bg-surface-2">
           ↑ Upload
           <input
             type="file"
@@ -60,12 +66,7 @@ export function BackCoverImagePicker({ book }: { book: Book }) {
             Remove
           </button>
         </div>
-      ) : (
-        <p className="mt-1 text-xs text-muted">
-          Pick one of your pictures below, or upload your own. It prints above
-          the blurb.
-        </p>
-      )}
+      ) : null}
 
       {candidates.length > 0 && (
         <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
@@ -79,7 +80,7 @@ export function BackCoverImagePicker({ book }: { book: Book }) {
           ))}
         </div>
       )}
-    </div>
+    </section>
   )
 }
 

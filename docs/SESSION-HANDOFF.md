@@ -26,6 +26,10 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Back cover picture moved to the Illustrate tab**, as its own card right
+  under the front-cover card (`BackCoverImagePicker` now renders a full card).
+  The Publish tab keeps the back-cover *description* and shows a link
+  ("Choose one / Change it on the Illustrate tab") via `onGoToIllustrate`.
 - **Kindle eBook files + steps** (Publish tab → *Kindle eBook (optional)*;
   `EbookPanel.tsx`, `lib/ebook/`). KDP no longer takes fixed-layout EPUB for
   picture books; the supported route is a PDF opened in Amazon's free **Kindle

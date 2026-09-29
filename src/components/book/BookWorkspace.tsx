@@ -85,7 +85,9 @@ export function BookWorkspace({ bookId }: { bookId: string }) {
             onGoToPublish={() => setPhase('publish')}
           />
         )}
-        {phase === 'publish' && <PublishPhase book={book} />}
+        {phase === 'publish' && (
+          <PublishPhase book={book} onGoToIllustrate={() => setPhase('illustrate')} />
+        )}
       </div>
     </div>
   )

@@ -25,14 +25,19 @@ import type { Book } from '@/lib/types'
 import { cn } from '@/lib/cn'
 import { callWrite } from '@/lib/ai/writeClient'
 import { ListingHelper } from './ListingHelper'
-import { BackCoverImagePicker } from './BackCoverImagePicker'
 import { MarketingSlide } from './MarketingSlide'
 import { BindingPicker } from './BindingPicker'
 import { EbookPanel } from './EbookPanel'
 
 const KDP_BOOKSHELF = 'https://kdp.amazon.com/en_US/bookshelf'
 
-export function PublishPhase({ book }: { book: Book }) {
+export function PublishPhase({
+  book,
+  onGoToIllustrate,
+}: {
+  book: Book
+  onGoToIllustrate?: () => void
+}) {
   const pages = useLiveQuery(() => getPages(book.id), [book.id]) ?? []
   const [result, setResult] = useState<ExportResult | null>(null)
   const [busy, setBusy] = useState(false)
@@ -223,7 +228,20 @@ export function PublishPhase({ book }: { book: Book }) {
             Amazon&apos;s barcode.
           </p>
 
-          <BackCoverImagePicker book={book} />
+          <p className="mt-1 text-xs text-muted">
+            {book.backCoverImage ? '✓ Back cover picture set. ' : 'Want a picture behind it? '}
+            {onGoToIllustrate ? (
+              <button
+                type="button"
+                onClick={onGoToIllustrate}
+                className="font-semibold text-accent underline"
+              >
+                {book.backCoverImage ? 'Change it on the Illustrate tab' : 'Choose one on the Illustrate tab'}
+              </button>
+            ) : (
+              'Choose it on the Illustrate tab.'
+            )}
+          </p>
 
           <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-semibold">
             <input
