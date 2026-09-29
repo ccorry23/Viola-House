@@ -155,15 +155,16 @@ export async function renderEbookCover({
     const gap = style ? style.gap : plan.extras.length ? Math.max(3, plan.size * 0.2) : 0
     const extrasH = plan.extras.reduce((sum, l) => sum + l.lineH, 0)
     const textTop = style ? style.textTop : textBottom + plan.lines.length * plan.lineH + gap + extrasH
-    let ty = textTop - plan.size
+    // Same row boxes as drawBandText: baseline one font size below each box top.
+    let boxTop = textTop
     for (const line of plan.lines) {
-      drawRow(line, plan.size, plan.font, ty)
-      ty -= plan.lineH
+      drawRow(line, plan.size, plan.font, boxTop - plan.size)
+      boxTop -= plan.lineH
     }
-    ty -= gap
+    boxTop -= gap
     for (const ex of plan.extras) {
-      drawRow(ex.text, ex.size, ex.font, ty)
-      ty -= ex.lineH
+      drawRow(ex.text, ex.size, ex.font, boxTop - ex.size)
+      boxTop -= ex.lineH
     }
   }
 
