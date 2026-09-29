@@ -31,6 +31,7 @@ import { useBlobUrl } from '@/lib/hooks/useBlobUrl'
 import { TRIM_SIZES } from '@/lib/kdp/constants'
 import type { Book, CastMember, Page, StyleLock } from '@/lib/types'
 import { cn } from '@/lib/cn'
+import { BackCoverImagePicker } from './BackCoverImagePicker'
 
 export function IllustratePhase({
   book,
@@ -62,6 +63,7 @@ export function IllustratePhase({
   return (
     <div className="mx-auto max-w-4xl">
       <CoverPanel book={book} available={available} />
+      <BackCoverImagePicker book={book} />
 
       {available === false && (
         <Banner tone="warn">

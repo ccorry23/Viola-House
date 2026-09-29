@@ -26,6 +26,23 @@ To ship it:
 4. Print Previewer → check pages (untick "Guides") → **Approve**.
 
 ## Just added (this session)
+- **Back cover picture moved to the Illustrate tab**, as its own card right
+  under the front-cover card (`BackCoverImagePicker` now renders a full card).
+  The Publish tab keeps the back-cover *description* and shows a link
+  ("Choose one / Change it on the Illustrate tab") via `onGoToIllustrate`.
+- **Kindle eBook files + steps** (Publish tab → *Kindle eBook (optional)*;
+  `EbookPanel.tsx`, `lib/ebook/`). KDP no longer takes fixed-layout EPUB for
+  picture books; the supported route is a PDF opened in Amazon's free **Kindle
+  Create** (Windows/Mac) → exported `.kpf` → uploaded to KDP, plus a separate
+  cover JPEG. So "Make eBook files" produces: `…-ebook.pdf` (via
+  `buildInteriorPdf({ format: 'ebook' })`: exact trim size, no bleed, no blank
+  padding, art at 1800 px long side to keep the per-MB delivery fee down) and
+  `…-ebook-cover.jpg` (`renderEbookCover`: same art + title band as the print
+  front cover, canvas-drawn at 2560 px long side in the book's own shape, sRGB).
+  Steps on the Publish tab and a new **Part 9** in `/guide` walk through Kindle
+  Create, "+ Create eBook" from the paperback row, no ISBN, 35%/70% royalty.
+  Verified headless: 8.5×8.5 and 7×10 → correct page sizes, no padding, cover
+  2560×2560 / 1792×2560.
 - **Amazon listing helper now saves its results** (`ListingHelper.tsx`): the
   description, subtitles and keywords are stored on the book (`book.listing`,
   merged per part via `patchListing` in `dexie.ts`), so they're still there after

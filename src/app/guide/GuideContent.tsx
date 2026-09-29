@@ -206,6 +206,55 @@ export default function GuideContent() {
         </div>
       </Part>
 
+      <Part n="9" id="part9" title="Make a Kindle eBook (optional)" skip="Only if you'd also like to sell a digital copy">
+        <p className="pd-lede">
+          An eBook is a second, digital edition of the same book. It uses one extra free program
+          from Amazon called <strong>Kindle Create</strong>, which needs a <strong>Windows or Mac
+          computer</strong> (it won&apos;t work on a phone or iPad).
+        </p>
+        <div className="pd-steps">
+          <Step n={1} text={<>In Viola House, go to the <strong>Publish</strong> tab and click &ldquo;Make eBook files&rdquo;</>} note={<>Then click &ldquo;↓ eBook PDF&rdquo; and &ldquo;↓ eBook cover.&rdquo; They land in your Downloads folder, one ending in <Code>-ebook.pdf</Code> and one in <Code>-ebook-cover.jpg</Code>.</>}>
+            <Mock url="📁 Downloads">
+              <div className="pd-file">📄 the-sleepy-fox<strong>-ebook.pdf</strong></div>
+              <div className="pd-file" style={{ marginBottom: 0 }}>🖼️ the-sleepy-fox<strong>-ebook-cover.jpg</strong></div>
+            </Mock>
+          </Step>
+          <Step n={2} text="Install Kindle Create (free, one time only)" note={<>Search for <Code>Kindle Create</Code> on Amazon.com, download it, and install it like any other program.</>} />
+          <Step n={3} text={<>Open Kindle Create and start a new book from your <Code>-ebook.pdf</Code> file</>} note={<>Amazon calls this a &ldquo;Print Replica&rdquo; book, which means every page looks exactly like your PDF.</>}>
+            <Important>
+              Flip through Kindle Create&apos;s preview to check your pages. Then use its{' '}
+              <strong>Publish</strong> (export) button. It saves a file ending in{' '}
+              <strong>.kpf</strong>, and that is the file you upload to Amazon.
+            </Important>
+          </Step>
+          <Step n={4} text="Go to your KDP Bookshelf and find your paperback" note={<>Next to it, click &ldquo;+ Create eBook.&rdquo; That keeps the paperback and eBook together on one Amazon page. (No paperback yet? Click &ldquo;+ Create&rdquo; and choose <strong>Kindle eBook</strong>.)</>}>
+            <Mock url="kdp.amazon.com/bookshelf">
+              <div className="pd-headrow">
+                <MTitle style={{ marginBottom: 0 }}>The Sleepy Little Fox</MTitle>
+                <Callout label="Click here"><MBtn>+ Create eBook</MBtn></Callout>
+              </div>
+            </Mock>
+          </Step>
+          <Step n={5} text="Fill in the details just like the paperback" note="Same title and author. Copy the description and keywords from Viola House's listing helper on the Publish tab." />
+          <Step n={6} text={<>Content: upload your <Code>.kpf</Code> file as the manuscript, and your <Code>-ebook-cover.jpg</Code> as the cover</>} note="eBooks don't need an ISBN, so you can skip that. Click “Launch Previewer” to flip through it.">
+            <Mock url="kdp.amazon.com/title/content">
+              <div className="pd-row" style={{ alignItems: 'stretch' }}>
+                <div className="pd-field pd-field--upload">
+                  📤<br /><strong>Manuscript</strong><br />your-book<strong>.kpf</strong>
+                </div>
+                <Callout as="div" label="Your -ebook-cover.jpg goes here" style={{ flex: 1 }}>
+                  <div className="pd-field pd-field--upload" style={{ marginBottom: 0 }}>
+                    📤<br /><strong>Cover</strong><br />Upload a cover you already have
+                  </div>
+                </Callout>
+              </div>
+            </Mock>
+          </Step>
+          <Step n={7} text="Set your price" note="You'll pick a 35% or 70% royalty. The 70% plan needs a price from $2.99 to $9.99, and Amazon subtracts a small delivery fee for big picture files. Amazon shows what you'd earn under each, so pick whichever pays more." />
+          <Step n={8} text='Click "Publish Your Kindle eBook"' note="eBooks usually go live within 72 hours." />
+        </div>
+      </Part>
+
       <section className="mt-14 rounded-3xl border border-border bg-surface-2 px-6 py-10 text-center">
         <h2 className="font-display text-3xl font-bold">You did it. 🌸</h2>
         <p className="mx-auto mt-2 max-w-[46ch] text-lg text-muted">
@@ -361,6 +410,7 @@ const TOC: { n: string; id: string; label: string; skip?: boolean }[] = [
   { n: '6', id: 'part6', label: 'Set your price' },
   { n: '7', id: 'part7', label: 'Publish' },
   { n: '8', id: 'part8', label: 'After it goes live' },
+  { n: '9', id: 'part9', label: 'Make a Kindle eBook (optional)' },
 ]
 
 function Toc() {

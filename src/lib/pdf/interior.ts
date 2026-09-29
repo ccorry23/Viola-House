@@ -38,6 +38,12 @@ export interface BuildInteriorInput {
   bodyFont?: BodyFontId
   /** Binding decides the minimum page count we pad to (24 paperback, 75 hardcover). */
   binding?: BindingId
+  /**
+   * 'print' (default): trim + bleed page box, padded with blanks to KDP's
+   * minimum and an even count. 'ebook': pages at the exact trim size (screens
+   * have no trim or bleed) and no blank padding — for Kindle Create.
+   */
+  format?: 'print' | 'ebook'
 }
 
 /**
@@ -58,13 +64,15 @@ export async function buildInteriorPdf({
   pages,
   bodyFont,
   binding = 'paperback',
+  format = 'print',
 }: BuildInteriorInput): Promise<InteriorResult> {
   const trim = TRIM_SIZES[trimSize]
-  const box = interiorPageBoxIn(trim)
+  const ebook = format === 'ebook'
+  const box = ebook ? { w: trim.w, h: trim.h } : interiorPageBoxIn(trim)
   const wPt = box.w * PT_PER_INCH
   const hPt = box.h * PT_PER_INCH
-  // Keep content inside bleed + safe margin from every physical edge.
-  const inset = (BLEED_IN + SAFE_MARGIN_IN) * PT_PER_INCH
+  // Keep content inside the safe margin from every edge (plus bleed in print).
+  const inset = ((ebook ? 0 : BLEED_IN) + SAFE_MARGIN_IN) * PT_PER_INCH
 
   const doc = await PDFDocument.create()
   doc.registerFontkit(fontkit)
@@ -180,10 +188,10 @@ export async function buildInteriorPdf({
     }
   }
 
-  // --- Pad to KDP minimum + even count ---
+  // --- Pad to KDP minimum + even count (print only; ebooks have neither) ---
   let total = doc.getPageCount()
-  const minPages = minInteriorPages(binding)
-  while (total < minPages || total % 2 !== 0) {
+  const minPages = ebook ? 0 : minInteriorPages(binding)
+  while (!ebook && (total < minPages || total % 2 !== 0)) {
     addBlank()
     total++
   }
