@@ -28,6 +28,7 @@ import { ListingHelper } from './ListingHelper'
 import { BackCoverImagePicker } from './BackCoverImagePicker'
 import { MarketingSlide } from './MarketingSlide'
 import { BindingPicker } from './BindingPicker'
+import { EbookPanel } from './EbookPanel'
 
 const KDP_BOOKSHELF = 'https://kdp.amazon.com/en_US/bookshelf'
 
@@ -395,6 +396,9 @@ export function PublishPhase({ book }: { book: Book }) {
           </div>
         )}
       </section>
+
+      {/* Kindle eBook */}
+      <EbookPanel key={`ebook-${book.id}`} book={book} pages={pages} />
 
       {/* Amazon listing helper */}
       <ListingHelper key={book.id} book={book} />

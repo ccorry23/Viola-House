@@ -133,7 +133,12 @@ export async function exportBook(
 
 /** Trigger a browser download of PDF bytes. */
 export function downloadPdf(bytes: Uint8Array, filename: string) {
-  const blob = new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' })
+  downloadBytes(bytes, filename, 'application/pdf')
+}
+
+/** Trigger a browser download of any file bytes. */
+export function downloadBytes(bytes: Uint8Array, filename: string, type: string) {
+  const blob = new Blob([bytes as unknown as BlobPart], { type })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
