@@ -6,7 +6,12 @@ import { callWrite, checkWritingAvailability, WriteError } from '@/lib/ai/writeC
 import { useOnline } from '@/lib/hooks/useOnline'
 import { patchBook, patchListing } from '@/lib/db/dexie'
 import type { Book, ListingCopy, ListingKeyword } from '@/lib/types'
-import { boxNewWords, KDP_KEYWORD_BOXES } from '@/lib/listing/variants'
+import {
+  boxNewWords,
+  KDP_KEYWORD_BOXES,
+  placeVariants,
+  placedVariantWords,
+} from '@/lib/listing/variants'
 import { KeywordVariants } from './KeywordVariants'
 
 type Tool = 'description' | 'subtitle' | 'keywords'
@@ -60,7 +65,7 @@ export function ListingHelper({ book }: { book: Book }) {
     description: 'Write a new description? This replaces the saved one, including your edits.',
     subtitle: 'Suggest new subtitles? This replaces the saved ones, including your edits.',
     keywords:
-      'Suggest new keywords? This replaces the saved ones, including your edits. (Your spelling-variant box is kept.)',
+      'Suggest new keywords? This replaces the saved ones, including your edits. (Your spelling variants are kept.)',
   }
 
   async function generate(tool: Tool) {
@@ -88,8 +93,8 @@ export function ListingHelper({ book }: { book: Book }) {
         } else toast('Nothing came back — try again.')
       } else {
         if (res.keywords?.length) {
-          // Keep the spelling-variant box(es) from the variant assistant.
-          const next = [...res.keywords, ...(keywords ?? []).filter((k) => k.variant)]
+          // Carry over the spelling-variant words into the new boxes' spare room.
+          const next = placeVariants(res.keywords, placedVariantWords(keywords ?? []))
           setKeywords(next)
           save({ keywords: next })
         } else toast('Nothing came back — try again.')
@@ -282,11 +287,16 @@ export function ListingHelper({ book }: { book: Book }) {
                           {k.keyword.length}/50
                         </span>
                       </div>
-                      {(k.why || k.variant || redundant) && (
+                      {(k.why || k.variant || k.variantSuffix || redundant) && (
                         <p className="mt-0.5 text-xs text-muted">
                           {k.variant && (
                             <span className="mr-1 rounded bg-accent-soft px-1.5 py-0.5 font-semibold text-accent">
                               Spelling variants
+                            </span>
+                          )}
+                          {k.variantSuffix && (
+                            <span className="mr-1 rounded bg-accent-soft px-1.5 py-0.5 font-semibold text-accent">
+                              + spelling variants: {k.variantSuffix}
                             </span>
                           )}
                           {redundant && (

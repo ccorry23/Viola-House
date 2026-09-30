@@ -15,6 +15,8 @@
  * Pure functions — no browser APIs — so they're easy to test.
  */
 
+import type { ListingKeyword } from '@/lib/types'
+
 export type VariantKind =
   | 'apostrophe'
   | 'expanded'
@@ -324,4 +326,80 @@ export function boxNewWords(boxes: string[], titlePhrases: string[]): string[][]
       ...new Set(tokenize(box).filter((w) => !base.has(w) && !others.has(w) && !STOP.has(w))),
     ]
   })
+}
+
+export const VARIANT_WHY = 'Spelling & punctuation variants of your title'
+
+/**
+ * Take out everything the variant assistant added: whole variant boxes, and
+ * variant words tucked onto the end of other boxes. (If the author has since
+ * edited a box so it no longer ends with those words, their text is kept.)
+ */
+export function stripVariants(boxes: ListingKeyword[]): ListingKeyword[] {
+  const out: ListingKeyword[] = []
+  for (const b of boxes) {
+    if (b.variant) continue
+    if (b.variantSuffix) {
+      const { variantSuffix, ...rest } = b
+      const keyword = b.keyword.endsWith(variantSuffix)
+        ? b.keyword.slice(0, -variantSuffix.length).trimEnd()
+        : b.keyword
+      out.push({ ...rest, keyword })
+    } else {
+      out.push(b)
+    }
+  }
+  return out
+}
+
+/** The variant words currently placed in the boxes (to carry them over). */
+export function placedVariantWords(boxes: ListingKeyword[]): string[] {
+  const out: string[] = []
+  for (const b of boxes) {
+    const text = b.variant ? b.keyword : b.variantSuffix
+    if (text) for (const w of tokenize(text)) if (!out.includes(w)) out.push(w)
+  }
+  return out
+}
+
+/**
+ * Place variant words WITHOUT spending a keyword box when possible: first all
+ * together in the existing box with the most spare room, then word by word into
+ * spare room, and only what's left over goes into a new box. Amazon reads the
+ * words in every box, so where they sit doesn't change what they match.
+ */
+export function placeVariants(
+  boxes: ListingKeyword[],
+  words: string[],
+  max = KDP_KEYWORD_BOX_CHARS
+): ListingKeyword[] {
+  const out = stripVariants(boxes).map((b) => ({ ...b }))
+  if (!words.length) return out
+  const room = (b: ListingKeyword) => max - b.keyword.length - (b.keyword ? 1 : 0)
+  const roomiest = (need: number) => {
+    let best = -1
+    out.forEach((b, i) => {
+      if (room(b) >= need && (best < 0 || room(b) > room(out[best]))) best = i
+    })
+    return best
+  }
+  const append = (b: ListingKeyword, text: string) => {
+    b.keyword = b.keyword ? `${b.keyword} ${text}` : text
+    b.variantSuffix = b.variantSuffix ? `${b.variantSuffix} ${text}` : text
+  }
+
+  const all = words.join(' ')
+  const whole = roomiest(all.length)
+  if (whole >= 0) {
+    append(out[whole], all)
+    return out
+  }
+  const left: string[] = []
+  for (const w of words) {
+    const i = roomiest(w.length)
+    if (i >= 0) append(out[i], w)
+    else left.push(w)
+  }
+  for (const box of packBoxes(left, max)) out.push({ keyword: box, why: VARIANT_WHY, variant: true })
+  return out
 }

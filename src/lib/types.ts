@@ -59,6 +59,8 @@ export interface ListingKeyword {
   why: string
   /** A box filled by the keyword-variant assistant (title spelling variants). */
   variant?: boolean
+  /** Variant words the assistant tucked onto the end of this box's spare room. */
+  variantSuffix?: string
 }
 
 export interface ListingCopy {

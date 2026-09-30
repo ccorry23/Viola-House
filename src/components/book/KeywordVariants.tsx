@@ -4,21 +4,21 @@ import { useState } from 'react'
 import { patchListing } from '@/lib/db/dexie'
 import {
   KDP_KEYWORD_BOXES,
-  packBoxes,
+  placeVariants,
+  stripVariants,
   suggestVariants,
   variantWords,
   type Variant,
 } from '@/lib/listing/variants'
 import type { Book, ListingKeyword } from '@/lib/types'
 
-export const VARIANT_WHY = 'Spelling & punctuation variants of your title'
-
 /**
  * Keyword variant assistant: suggests the ways shoppers might type the title
  * that Amazon may not match on its own — no apostrophe ("didnt"), spelled out
  * ("did not"), hyphens, numbers, and common typos — as checkboxes. Ticked
- * variants are reduced to the words they add and packed into as few KDP
- * keyword boxes as possible, saved with the book's other keywords.
+ * variants are reduced to the words they add, which are tucked into spare room
+ * in the existing keyword boxes (a new box only if none has room), and saved
+ * with the book's other keywords.
  */
 export function KeywordVariants({
   book,
@@ -30,12 +30,13 @@ export function KeywordVariants({
   onApply: (next: ListingKeyword[], accepted: string[]) => void
 }) {
   const [subtitle, setSubtitle] = useState(book.listing?.subtitle ?? '')
-  const otherBoxes = keywords.filter((k) => !k.variant)
+  // The author's own boxes, without anything this assistant added to them.
+  const ownBoxes = stripVariants(keywords)
   // Cheap pure computation — fine to redo on every render.
   const variants = suggestVariants({
     title: book.title,
     subtitle,
-    keywordPhrases: otherBoxes.map((k) => k.keyword),
+    keywordPhrases: ownBoxes.map((k) => k.keyword),
   })
 
   // Saved choices if any; otherwise tick every non-typo variant that helps.
@@ -46,9 +47,7 @@ export function KeywordVariants({
       suggestVariants({
         title: book.title,
         subtitle: book.listing?.subtitle,
-        keywordPhrases: (book.listing?.keywords ?? [])
-          .filter((k) => !k.variant)
-          .map((k) => k.keyword),
+        keywordPhrases: stripVariants(book.listing?.keywords ?? []).map((k) => k.keyword),
       })
         .filter((v) => v.kind !== 'typo' && v.newWords.length > 0)
         .map((v) => v.text)
@@ -56,13 +55,20 @@ export function KeywordVariants({
   })
 
   const chosen = variants.filter((v) => checked.has(v.text) && v.newWords.length > 0)
-  const boxes = packBoxes(variantWords(chosen))
-  const total = otherBoxes.length + boxes.length
-  const over = total - KDP_KEYWORD_BOXES
-  const currentVariantBoxes = keywords.filter((k) => k.variant).map((k) => k.keyword)
+  const words = variantWords(chosen)
+  const preview = placeVariants(keywords, words)
+  const newBoxes = preview.length - ownBoxes.length
+  const hostBoxes = preview
+    .map((b, i) => (b.variantSuffix ? i + 1 : 0))
+    .filter(Boolean)
+  const over = preview.length - KDP_KEYWORD_BOXES
+  const hasPlaced = keywords.some((k) => k.variant || k.variantSuffix)
+  const same = (a: ListingKeyword, b: ListingKeyword) =>
+    a.keyword === b.keyword &&
+    Boolean(a.variant) === Boolean(b.variant) &&
+    (a.variantSuffix ?? '') === (b.variantSuffix ?? '')
   const upToDate =
-    currentVariantBoxes.length === boxes.length &&
-    currentVariantBoxes.every((b, i) => b === boxes[i])
+    preview.length === keywords.length && preview.every((b, i) => same(b, keywords[i]))
 
   function toggle(text: string) {
     const next = new Set(checked)
@@ -72,11 +78,7 @@ export function KeywordVariants({
   }
 
   function apply() {
-    const next: ListingKeyword[] = [
-      ...otherBoxes,
-      ...boxes.map((b) => ({ keyword: b, why: VARIANT_WHY, variant: true })),
-    ]
-    onApply(next, chosen.map((v) => v.text))
+    onApply(preview, chosen.map((v) => v.text))
   }
 
   const groups: { title: string; hint?: string; items: Variant[] }[] = [
@@ -99,8 +101,8 @@ export function KeywordVariants({
       <p className="mt-0.5 text-xs text-muted">
         Amazon may not connect “Didnt” or “Did Not” to a title spelled “Didn’t”,
         especially while a book is new. Tick the versions shoppers might type and
-        we’ll put the words they add into your keyword boxes, packed into as few
-        boxes as possible.
+        we’ll tuck the words they add into spare room in your keyword boxes, so
+        they don’t use up a box.
       </p>
 
       <label htmlFor="kv-subtitle" className="mt-3 block text-xs font-semibold text-muted">
@@ -166,24 +168,32 @@ export function KeywordVariants({
       )}
 
       <div className="mt-3 rounded-lg bg-background px-3 py-2 text-xs">
-        {boxes.length === 0 ? (
-          <span className="text-muted">Nothing ticked — no variant box needed.</span>
+        {words.length === 0 ? (
+          <span className="text-muted">Nothing ticked, so nothing to add.</span>
         ) : (
           <>
-            Uses <strong>{boxes.length}</strong> keyword box
-            {boxes.length > 1 ? 'es' : ''}:{' '}
-            {boxes.map((b) => (
-              <code key={b} className="mr-1 rounded bg-surface-2 px-1">
-                {b}
-              </code>
-            ))}
+            Adds{' '}
+            <code className="rounded bg-surface-2 px-1">{words.join(' ')}</code>
+            {newBoxes === 0 ? (
+              <>
+                {' '}
+                to the spare room in box {hostBoxes.join(' & ')}. <strong>No extra box
+                needed.</strong>
+              </>
+            ) : (
+              <>
+                {' '}
+                — your boxes are too full to fit {hostBoxes.length ? 'all of them' : 'them'},
+                so this uses <strong>{newBoxes}</strong> new box{newBoxes > 1 ? 'es' : ''}.
+              </>
+            )}
           </>
         )}
         {over > 0 && (
           <p className="mt-1 font-semibold text-red-600">
-            That makes {total} boxes, but KDP only has {KDP_KEYWORD_BOXES}. Remove{' '}
-            {over} of the boxes above first. Any marked “adds nothing new” are the
-            safest to drop.
+            That makes {preview.length} boxes, but KDP only has {KDP_KEYWORD_BOXES}.
+            Remove {over} of the boxes above first. Any marked “adds nothing new” are
+            the safest to drop.
           </p>
         )}
       </div>
@@ -195,14 +205,14 @@ export function KeywordVariants({
         className="mt-3 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg disabled:opacity-50"
       >
         {upToDate
-          ? boxes.length
+          ? words.length
             ? '✓ Saved in your keywords'
-            : 'No variant box'
-          : boxes.length
-            ? currentVariantBoxes.length
-              ? 'Update my variant box'
+            : 'Nothing added'
+          : words.length
+            ? hasPlaced
+              ? 'Update my keywords'
               : 'Add to my keywords'
-            : 'Remove the variant box'}
+            : 'Take the variants out'}
       </button>
     </div>
   )

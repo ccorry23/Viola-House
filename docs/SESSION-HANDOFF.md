@@ -34,13 +34,16 @@ To ship it:
   long theme words from the other boxes (e.g. "sportmanship"), as checkboxes
   (typos unticked by default). Because Amazon matches words across title +
   subtitle + all keyword boxes, each variant is reduced to the words it ADDS and
-  those are packed into as few 50-char boxes as possible (usually one:
-  "didnt did not"); variants that add nothing are shown as "already covered".
-  Saved on the book: `listing.keywords[].variant` marks the box,
+  those are tucked into SPARE ROOM of the existing boxes (`placeVariants`:
+  all together in the roomiest box, else word by word, and only leftovers get a
+  new box), so they normally cost no keyword slot; variants that add nothing
+  are shown as "already covered". Saved on the book:
+  `listing.keywords[].variantSuffix` marks words appended to a box (stripped
+  and re-placed on update), `listing.keywords[].variant` marks an overflow box,
   `listing.acceptedVariants` keeps the ticks, `listing.subtitle` is the subtitle
   in use. The keyword list now counts boxes against KDP's 7, warns when over,
   labels boxes that "add nothing new" (safest to drop), and supports Remove /
-  + Add a box / typing keywords without AI. AI "Redo" keeps the variant box.
+  + Add a box / typing keywords without AI. AI "Redo" re-places the variant words.
 - **KDP cover rejection fix ("text too close to the edges", needs ≥0.375")**:
   (1) byline bug — `drawBandText` (and the plain-cover branch + eBook cover)
   placed a small line under a big title using the *title's* size, dropping the
