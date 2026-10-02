@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import {
-  callWrite,
-  checkWritingAvailability,
-  WriteError,
-  type KeywordItem,
-} from '@/lib/ai/writeClient'
+import { callWrite, checkWritingAvailability, WriteError } from '@/lib/ai/writeClient'
 import { useOnline } from '@/lib/hooks/useOnline'
 import { patchBook, patchListing } from '@/lib/db/dexie'
-import type { Book, ListingCopy } from '@/lib/types'
+import type { Book, ListingCopy, ListingKeyword } from '@/lib/types'
+import {
+  boxNewWords,
+  KDP_KEYWORD_BOXES,
+  placeVariants,
+  placedVariantWords,
+} from '@/lib/listing/variants'
+import { KeywordVariants } from './KeywordVariants'
 
 type Tool = 'description' | 'subtitle' | 'keywords'
 
@@ -31,7 +33,7 @@ export function ListingHelper({ book }: { book: Book }) {
   const [subtitles, setSubtitles] = useState<string[] | null>(
     book.listing?.subtitles?.length ? book.listing.subtitles : null
   )
-  const [keywords, setKeywords] = useState<KeywordItem[] | null>(
+  const [keywords, setKeywords] = useState<ListingKeyword[] | null>(
     book.listing?.keywords?.length ? book.listing.keywords : null
   )
 
@@ -39,6 +41,18 @@ export function ListingHelper({ book }: { book: Book }) {
   function save(part: Partial<ListingCopy>) {
     patchListing(book.id, part)
   }
+
+  function updateKeywords(next: ListingKeyword[]) {
+    setKeywords(next.length ? next : null)
+    save({ keywords: next })
+  }
+
+  // Boxes whose every word Amazon already matches (title, subtitle, or another
+  // box) add nothing — the first ones to drop when over KDP's 7-box limit.
+  const addsNothing = boxNewWords(
+    (keywords ?? []).map((k) => k.keyword),
+    [book.title, book.listing?.subtitle ?? '']
+  ).map((w) => w.length === 0)
 
   useEffect(() => {
     checkWritingAvailability().then(setAvailable)
@@ -50,7 +64,8 @@ export function ListingHelper({ book }: { book: Book }) {
   const REDO_WARNING: Record<Tool, string> = {
     description: 'Write a new description? This replaces the saved one, including your edits.',
     subtitle: 'Suggest new subtitles? This replaces the saved ones, including your edits.',
-    keywords: 'Suggest new keywords? This replaces the saved ones, including your edits.',
+    keywords:
+      'Suggest new keywords? This replaces the saved ones, including your edits. (Your spelling variants are kept.)',
   }
 
   async function generate(tool: Tool) {
@@ -78,8 +93,10 @@ export function ListingHelper({ book }: { book: Book }) {
         } else toast('Nothing came back — try again.')
       } else {
         if (res.keywords?.length) {
-          setKeywords(res.keywords)
-          save({ keywords: res.keywords })
+          // Carry over the spelling-variant words into the new boxes' spare room.
+          const next = placeVariants(res.keywords, placedVariantWords(keywords ?? []))
+          setKeywords(next)
+          save({ keywords: next })
         } else toast('Nothing came back — try again.')
       }
     } catch (e) {
@@ -222,63 +239,131 @@ export function ListingHelper({ book }: { book: Book }) {
           </div>
           {genBtn('keywords', Boolean(keywords), 'Suggest')}
         </div>
-        {keywords && (
+        {keywords && keywords.length > 0 && (
           <>
-            <ol className="mt-2 space-y-2">
-              {keywords.map((k, i) => (
-                <li
-                  key={i}
-                  className="flex items-start justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-accent"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-muted">{i + 1}.</span>
-                      <input
-                        aria-label={`Keyword ${i + 1}`}
-                        value={k.keyword}
-                        onChange={(e) =>
-                          setKeywords(
-                            keywords.map((x, j) =>
-                              j === i ? { ...x, keyword: e.target.value } : x
-                            )
-                          )
-                        }
-                        onBlur={() => save({ keywords })}
-                        className="min-w-0 flex-1 bg-transparent outline-none"
-                      />
-                      <span
-                        className={
-                          k.keyword.length > 50
-                            ? 'shrink-0 text-xs font-semibold text-red-600'
-                            : 'shrink-0 text-xs text-muted'
-                        }
-                      >
-                        {k.keyword.length}/50
-                      </span>
-                    </div>
-                    {k.why && (
-                      <p className="mt-0.5 text-xs text-muted">→ {k.why}</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => copy(k.keyword, 'Keyword copied')}
-                    className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-semibold hover:bg-surface-2"
-                  >
-                    Copy
-                  </button>
-                </li>
-              ))}
-            </ol>
-            <button
-              onClick={() =>
-                copy(keywords.map((k) => k.keyword).join('\n'), 'All keywords copied')
+            <p
+              className={
+                keywords.length > KDP_KEYWORD_BOXES
+                  ? 'mt-2 text-xs font-semibold text-red-600'
+                  : 'mt-2 text-xs text-muted'
               }
-              className="mt-2 rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"
             >
-              Copy all
-            </button>
+              {keywords.length} of {KDP_KEYWORD_BOXES} boxes used
+              {keywords.length > KDP_KEYWORD_BOXES &&
+                ` — KDP only has ${KDP_KEYWORD_BOXES}. Remove ${keywords.length - KDP_KEYWORD_BOXES}; any marked “adds nothing new” are the safest to drop.`}
+            </p>
+            <ol className="mt-2 space-y-2">
+              {keywords.map((k, i) => {
+                const redundant = k.keyword.trim() !== '' && addsNothing[i]
+                return (
+                  <li
+                    key={i}
+                    className="flex items-start justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-accent"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted">{i + 1}.</span>
+                        <input
+                          aria-label={`Keyword ${i + 1}`}
+                          value={k.keyword}
+                          onChange={(e) =>
+                            setKeywords(
+                              keywords.map((x, j) =>
+                                j === i ? { ...x, keyword: e.target.value } : x
+                              )
+                            )
+                          }
+                          onBlur={() => save({ keywords })}
+                          placeholder="Type a keyword or short phrase"
+                          className="min-w-0 flex-1 bg-transparent outline-none"
+                        />
+                        <span
+                          className={
+                            k.keyword.length > 50
+                              ? 'shrink-0 text-xs font-semibold text-red-600'
+                              : 'shrink-0 text-xs text-muted'
+                          }
+                        >
+                          {k.keyword.length}/50
+                        </span>
+                      </div>
+                      {(k.why || k.variant || k.variantSuffix || redundant) && (
+                        <p className="mt-0.5 text-xs text-muted">
+                          {k.variant && (
+                            <span className="mr-1 rounded bg-accent-soft px-1.5 py-0.5 font-semibold text-accent">
+                              Spelling variants
+                            </span>
+                          )}
+                          {k.variantSuffix && (
+                            <span className="mr-1 rounded bg-accent-soft px-1.5 py-0.5 font-semibold text-accent">
+                              + spelling variants: {k.variantSuffix}
+                            </span>
+                          )}
+                          {redundant && (
+                            <span className="mr-1 rounded bg-[color:var(--warn)]/12 px-1.5 py-0.5 font-semibold text-[color:var(--warn)]">
+                              Adds nothing new
+                            </span>
+                          )}
+                          {k.why && !k.variant && <>→ {k.why}</>}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <button
+                        onClick={() => copy(k.keyword, 'Keyword copied')}
+                        className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold hover:bg-surface-2"
+                      >
+                        Copy
+                      </button>
+                      <button
+                        onClick={() => updateKeywords(keywords.filter((_, j) => j !== i))}
+                        aria-label={`Remove keyword ${i + 1}`}
+                        className="rounded-lg px-2.5 py-1 text-xs text-muted hover:bg-surface-2"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ol>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                onClick={() =>
+                  copy(keywords.map((k) => k.keyword).join('\n'), 'All keywords copied')
+                }
+                className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"
+              >
+                Copy all
+              </button>
+              {keywords.length < KDP_KEYWORD_BOXES && (
+                <button
+                  onClick={() => updateKeywords([...keywords, { keyword: '', why: '' }])}
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"
+                >
+                  + Add a box
+                </button>
+              )}
+            </div>
           </>
         )}
+        {(!keywords || keywords.length === 0) && (
+          <button
+            onClick={() => updateKeywords([{ keyword: '', why: '' }])}
+            className="mt-2 rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"
+          >
+            + Type my own keywords
+          </button>
+        )}
+
+        <KeywordVariants
+          book={book}
+          keywords={keywords ?? []}
+          onApply={(next, accepted) => {
+            setKeywords(next.length ? next : null)
+            save({ keywords: next, acceptedVariants: accepted })
+          }}
+        />
       </div>
     </section>
   )

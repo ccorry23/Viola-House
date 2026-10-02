@@ -54,10 +54,24 @@ export interface CastMember {
 
 /** Amazon listing copy from the Publish tab's listing helper. Each part is
  *  saved when generated and can be edited or regenerated. */
+export interface ListingKeyword {
+  keyword: string
+  why: string
+  /** A box filled by the keyword-variant assistant (title spelling variants). */
+  variant?: boolean
+  /** Variant words the assistant tucked onto the end of this box's spare room. */
+  variantSuffix?: string
+}
+
 export interface ListingCopy {
   description?: string
   subtitles?: string[]
-  keywords?: { keyword: string; why: string }[]
+  /** The KDP backend keyword boxes, in order (KDP allows 7, 50 chars each). */
+  keywords?: ListingKeyword[]
+  /** The subtitle the author is actually using — feeds keyword variants. */
+  subtitle?: string
+  /** Variant phrases the author ticked, so their choices are kept. */
+  acceptedVariants?: string[]
 }
 
 export interface Book {
